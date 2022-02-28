@@ -5,7 +5,7 @@ import logging
 import time
 
 from tqdm import tqdm, trange
-from help_functions import (gen_tau_bin, sort_tau_bin, is_power_two)
+from .help_functions import (gen_tau_bin, sort_tau_bin, is_power_two)
 from torch.utils.data import DataLoader
 # import matplotlib.pyplot as plt
 # import skimage.io as skio
