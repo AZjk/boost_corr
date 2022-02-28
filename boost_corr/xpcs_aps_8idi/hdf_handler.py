@@ -4,7 +4,7 @@ import numpy as np
 import hdf5plugin
 import h5py
 import torch
-from xpcs_dataset import XpcsDataset
+from .xpcs_dataset import XpcsDataset
 
 
 class HdfDataset(XpcsDataset):

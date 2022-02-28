@@ -5,7 +5,7 @@ import logging
 import os
 from tqdm import trange
 import torch
-from xpcs_dataset import XpcsDataset
+from .xpcs_dataset import XpcsDataset
 
 logger = logging.getLogger(__name__)
 

@@ -2,12 +2,12 @@ import time
 import logging
 import os
 from .. import MultitauCorrelator
-from imm_handler import ImmDataset
-from rigaku_handler import RigakuDataset
-from hdf_handler import HdfDataset
-from xpcs_result import XpcsResult
+from .imm_handler import ImmDataset
+from .rigaku_handler import RigakuDataset
+from .hdf_handler import HdfDataset
+from .xpcs_result import XpcsResult
 import magic
-from xpcs_qpartitionmap import XpcsQPartitionMap
+from .xpcs_qpartitionmap import XpcsQPartitionMap
 
 
 logging.basicConfig(

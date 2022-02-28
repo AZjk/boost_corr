@@ -1,12 +1,12 @@
 import logging
 import os
-from imm_handler import ImmDataset
-from rigaku_handler import RigakuDataset
-from hdf_handler import HdfDataset
-from xpcs_result import XpcsResult
+from .imm_handler import ImmDataset
+from .rigaku_handler import RigakuDataset
+from .hdf_handler import HdfDataset
+from .xpcs_result import XpcsResult
 import magic
 from torch.utils.data import DataLoader
-from xpcs_qpartitionmap import XpcsQPartitionMap
+from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .. import TwotimeCorrelator
 # from torch.profiler import profile, record_function, ProfilerActivity
 

@@ -1,11 +1,9 @@
-import numpy as np
 import os
 import h5py
 import logging
-from Append_Metadata_xpcs_multitau import append_qmap
 import glob2
-from hdf_reader import put, get
-from xpcs_qpartitionmap import XpcsQPartitionMap
+from .Append_Metadata_xpcs_multitau import append_qmap
+from .hdf_reader import put, get
 
 logger = logging.getLogger(__name__)
 
