@@ -12,7 +12,7 @@ import numpy as np
 
 def run_and_get_result(det_size=(5, 7), frame_num=1024, device='cpu'):
     num_elm = det_size[0] * det_size[1]
-    mc = MultitauCorrelator(det_size, frame_num, device_type=device)
+    mc = MultitauCorrelator(det_size, frame_num, device=device)
     for _ in range(frame_num):
         x = torch.ones(det_size, device=device)
         mc.process(x.reshape(-1, num_elm))
