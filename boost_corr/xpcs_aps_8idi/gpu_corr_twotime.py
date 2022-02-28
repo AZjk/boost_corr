@@ -106,12 +106,11 @@ def solve_twotime(qmap=None,
         dset.update_mask_crop(qpm.get_mask_crop())
 
     tt = TwotimeCorrelator(qpm.qinfo,
-                           dset.frame_num,
+                           frame_num=dset.frame_num,
                            det_size=dset.det_size,
                            method='normal',
                            mask_crop=mask_crop,
                            window=1024,
-                           avg_frame=avg_frame,
                            device=device)
 
     logger.info("correlation solver created.")
