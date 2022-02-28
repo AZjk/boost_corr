@@ -3,12 +3,15 @@ import h5py
 import logging
 import glob2
 from .Append_Metadata_xpcs_multitau import append_qmap
-from .hdf_reader import put, get
+from .hdf_reader import put
 
 logger = logging.getLogger(__name__)
 
 
 def is_metadata(fname: str):
+    if not os.path.isfile(fname):
+        return False
+
     with h5py.File(fname, "r") as f:
         if "/hdf_metadata_version" in f:
             return True
@@ -21,7 +24,7 @@ def get_metadata(meta_dir: str):
     for x in meta_fname:
         if is_metadata(x):
             return x
-    raise FileExistsError(f'no metadata file found in [{meta_dir}]')
+    raise FileNotFoundError(f'no metadata file found in [{meta_dir}]')
 
 
 class XpcsResult(object):
@@ -56,21 +59,5 @@ class XpcsResult(object):
             **kwargs)
 
 
-def test_01():
-    dir = "../O018_Silica_D100_att0_Rq0_00005"
-    fname = "O018_Silica_D100_att0_Rq0_00005_0001-100000.hdf"
-    path = os.path.join(dir, fname)
-
-    detector = XpcsResult(path)
-    detector.show()
-
-
-def test_02():
-    meta_dir = "/home/miaoqi/Work/xpcs_data_raw/A005_Dragonite_25p_Quiescent_att0_Lq0_001"
-    qmap_fname = "/home/miaoqi/Work/xpcs_data_raw/qmap/harden201912_qmap_Dragonite_Lq0_S270_D54.h5"
-    output_dir = "/home/miaoqi/Work/xpcs_data_raw/cluster_result"
-    a = XpcsResult(meta_dir, qmap_fname, output_dir)
-
-
 if __name__ == "__main__":
-    test_02()
+    pass
