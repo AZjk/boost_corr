@@ -14,18 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 def compute_dtype(max_count, levels):
-    # get the dtype that can hold the accumulation of photons
+    # get the dtype that can hold the accumulation of photons without losing
+    # precision
     dtype_list = [
-        [1 / (2**5 - 1), torch.bfloat16, 2],  # float16 has 10 bits
+        [1 / (2**7 - 1), torch.bfloat16, 2],  # bfloat16 has  bits
         [1 / (2**23 - 1), torch.float32, 4],  # float32 has 23 bits
-        [1 / (2**64 - 1), torch.float32, 4],
+        [1 / (2**52 - 1), torch.float64, 8],  # float64
     ]
 
     dtype_ret = []
-    for idx, level in enumerate(levels):
-        # if idx <= -1:
-        #     dtype_ret.append([torch.uint8, 1])
-        #     continue
+    for level in levels:
         accu_count = max_count * (2**level)
         min_percent = 1.0 / accu_count
         for n in range(len(dtype_list)):
@@ -47,17 +45,15 @@ class MultitauCorrelator(object):
     def __init__(self,
                  det_size,
                  frame_num,
-                 device_type='cpu',
-                 queue_size=None,
-                 queue_level=4,
+                 device='cpu',
+                 queue_size: int = 64,
+                 queue_level: int = 4,
                  auto_queue=True,
                  mask_crop=None,
                  max_memory=24.0,
-                 avg_frame=1,
-                 max_count=1) -> None:
+                 max_count=7) -> None:
 
         self.det_size = det_size
-        self.avg_frame = avg_frame
         self.is_sparse = False
         self.max_memory = max_memory
 
@@ -85,7 +81,7 @@ class MultitauCorrelator(object):
         self.dtype_list = compute_dtype(max_count, levels)
 
         # self.device = torch.device(device_type)
-        self.device = device_type
+        self.device = device
 
         self.ct = [None for n in range(levels_num)]
         self.tau_all = []
@@ -183,6 +179,8 @@ class MultitauCorrelator(object):
         while get_size(self.levels_num, queue_size * 2,
                        queue_level) <= max_memory:
             queue_size *= 2
+            if queue_size > self.frame_num:
+                break
 
         while get_size(self.levels_num, queue_size,
                        queue_level + 1) <= max_memory:
@@ -374,10 +372,10 @@ def example(queue_size=512,
     logger.info('frame_num = %d', frame_num)
     logger.info('queue_size = %d', queue_size)
     logger.info('det_size = %s', det_size)
-    xb = XpcsBoost(det_size=det_size,
-                   frame_num=frame_num,
-                   queue_size=queue_size,
-                   device_type='cuda:1')
+    xb = MultitauCorrelator(det_size=det_size,
+                            frame_num=frame_num,
+                            queue_size=queue_size,
+                            device='cuda:1')
     xb.debug()
     stime = time.perf_counter()
     for n in tqdm(range(frame_num // batch_size + 1), colour='green'):
