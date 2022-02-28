@@ -32,47 +32,49 @@ def compute_diagonal_average(index, weights):
 class TwotimeCorrelator():
     def __init__(self,
                  qinfo,
-                 num_frames,
+                 frame_num,
                  det_size=(1024, 512),
                  window=1024,
-                 average=1,
                  mask_crop=None,
                  device='cpu',
                  method='normal',
-                 avg_frame=1,
                  dtype=torch.float32) -> None:
 
         self.dq_idx = qinfo['dq_idx']
         self.dq_slc = qinfo['dq_slc']
         self.sq_idx = qinfo['sq_idx']
         self.sq_slc = qinfo['sq_slc']
-        self.dq_sq_map = qinfo['dq_sq_map']
+        # self.dq_sq_map = qinfo['dq_sq_map']
 
         self.det_size = det_size
-        self.avg_frame = avg_frame
         self.pixel_num = self.det_size[0] * self.det_size[1]
 
         self.device = device
         self.cache = []
-        self.num_frames = num_frames
+        self.frame_num = frame_num
         self.method = method
+
+        if mask_crop is None:
+            mask_crop = torch.ones(det_size, device=self.device,
+                                   dtype=torch.bool)
+            mask_crop = mask_crop.reshape(-1)
+        self.mask_crop = mask_crop
 
         arr_size = self.dq_slc[-1].stop
         self.arr_size = arr_size
 
         num_dq = len(self.dq_slc)
         if self.method == 'normal':
-            shape = (num_frames, arr_size)
+            shape = (frame_num, arr_size)
         elif self.method == 'window':
             shape = (window * 2, arr_size)
-            self.c2 = torch.zeros((num_dq, num_frames - window + 1, window),
+            self.c2 = torch.zeros((num_dq, frame_num - window + 1, window),
                                   device=device)
             self.c2_ptr = 0
             # self.cache_sum = torch.zeros((window * 2, num_q), device=device)
 
         self.cache = torch.zeros(shape, device=device, dtype=dtype)
         self.cache_ptr = 0
-        self.mask_crop = mask_crop
 
         self.window = window
 
@@ -108,7 +110,7 @@ class TwotimeCorrelator():
                                     dtype=torch.float32,
                                     device=self.device)
 
-        frame_len = self.num_frames // num_part
+        frame_len = self.frame_num // num_part
         for n in range(num_part):
             sl = slice(n * frame_len, (n + 1) * frame_len)
             avg = torch.mean(self.cache[sl], axis=0)
@@ -117,7 +119,7 @@ class TwotimeCorrelator():
         self.pixel_sum_par = pixel_sum_par.reshape(num_part, *self.det_size)
 
         frame_sum = torch.mean(self.cache, axis=1)
-        taxis = torch.arange(self.num_frames, device=self.device)
+        taxis = torch.arange(self.frame_num, device=self.device)
         self.frame_sum = torch.stack([taxis, frame_sum])
 
     def compute_smooth_data(self, mode='sqmap'):
@@ -204,9 +206,9 @@ class TwotimeCorrelator():
         return saxs
 
     def calc_normal_twotime(self, num_partials=5):
-        diag_mat = create_diagonal_index(self.num_frames).to(self.device)
+        diag_mat = create_diagonal_index(self.frame_num).to(self.device)
         diag_mat_1d = diag_mat.reshape(-1)
-        partial_len = self.num_frames // num_partials
+        partial_len = self.frame_num // num_partials
         diag_mat_1d_p = diag_mat[0:partial_len, 0:partial_len].reshape(-1)
 
         # triu_idx = torch.tril_indices(self.num_frames, self.num_frames)
