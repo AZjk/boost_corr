@@ -111,7 +111,7 @@ def solve_multitau(qmap=None,
         frame_num=dset.frame_num,
         queue_size=batch_size,  # batch_size is the minimal value
         auto_queue=True,
-        device_type=device,
+        device=device,
         mask_crop=mask_crop,
         avg_frame=avg_frame)
 
