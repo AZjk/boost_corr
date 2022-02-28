@@ -27,7 +27,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="a high performance correlation (multi-tau/two-time) package running on GPU and CPU",
+    description="A high-performance correlation (multi-tau/two-time) package running on GPU and CPU",
     entry_points={
         'console_scripts': [
             'boost_corr=boost_corr.cli:main',
