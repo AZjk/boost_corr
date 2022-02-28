@@ -182,6 +182,7 @@ def main():
             flag = 1
             raise ValueError(f'Analysis type [{atype}] not supported.')
 
+        ans = None
         try:
             ans = method(**kwargs)
         except Exception:
