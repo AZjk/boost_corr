@@ -42,7 +42,6 @@ class test_xpcs_functions(unittest.TestCase):
         x[:, 0] = 0
         x[:, -2:] = 0
         sl_v, sl_h = nonzero_crop(x)
-        print(sl_v, sl_h)
         self.assertEqual(sl_v == slice(1, x.shape[0] - 2), True)
         self.assertEqual(sl_h == slice(1, x.shape[1] - 2), True)
 
