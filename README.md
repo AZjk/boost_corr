@@ -13,22 +13,23 @@ Installation (updated on 02/28/2022)
 --------
 * create new virtual environment use conda. Python version is specified here because the pytorch package only supports python 3.7-3.9. You can also use "python -m venv" or "virtualenv" to create a virutal enviroment.
 
-        conda create -n YOUR_ENV_NAME python==3.9.7
-
+	YOUR_ENV_NAME=boost_corr_test
+        conda create -n YOUR_ENV_NAME python=3.9 
 
 * activate your new environment
         
         conda activate YOUR_ENV_NAME
 
 * install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/)
-
-        pip3 install torch==1.10.2+cu113 torchvision==0.11.3+cu113 torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+	
+	conda install -c nvidia cudatoolkit
+	conda install -c pytorch pytorch 
 
 * clone and install boost-corr
         
         git clone git@github.com:AZjk/boost_corr.git
         cd boost_corr
-        pip install .
+        pip install . -e 
 
 
 Usage
