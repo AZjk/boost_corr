@@ -45,7 +45,6 @@ def solve_twotime(qmap=None,
     logger.info(f"meta_dir: {meta_dir}")
     logger.info(f"qmap: {qmap}")
     logger.info(f"output: {output}")
-    logger.info(f"batch_size: {batch_size}")
     logger.info(f"gpu_id: {gpu_id}")
 
     if not os.path.isdir(output):
@@ -93,7 +92,8 @@ def solve_twotime(qmap=None,
             dataset_method = ImmDataset
             use_loader = False
             batch_size = 256
-
+    batch_size = 1
+    logger.info(f"batch_size: {batch_size}")
     dset = dataset_method(raw, batch_size=batch_size, device=device,
                           mask_crop=mask_crop, avg_frame=avg_frame,
                           begin_frame=begin_frame, end_frame=end_frame,
@@ -115,7 +115,9 @@ def solve_twotime(qmap=None,
 
     logger.info("correlation solver created.")
 
-    dl = DataLoader(dset)
+    # specify batch_size=None so the data is a 2d array instead of 3d
+    # the batch is done in xpcs dataset, not in torch's DataLoader
+    dl = DataLoader(dset, batch_size=None)
 
     for x in dl:
         # print(x.dtype)
