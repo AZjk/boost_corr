@@ -17,7 +17,7 @@ key_fname = os.path.join(home_dir, 'default.json')
 if not os.path.isfile(key_fname):
     # TODO: force update the configure file;
     # if True:
-    from aps_8idi import key as aps_8idi_key
+    from .aps_8idi import key as aps_8idi_key
     with open(key_fname, 'w') as f:
         json.dump(aps_8idi_key, f, indent=4)
     logger.info('no key configuration files found; using APS-8IDI')
