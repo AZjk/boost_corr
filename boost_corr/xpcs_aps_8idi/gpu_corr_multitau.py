@@ -46,7 +46,6 @@ def solve_multitau(qmap=None,
     logger.info(f"meta_dir: {meta_dir}")
     logger.info(f"qmap: {qmap}")
     logger.info(f"output: {output}")
-    logger.info(f"batch_size: {batch_size}")
     logger.info(f"gpu_id: {gpu_id}")
 
     if not os.path.isdir(output):
@@ -92,6 +91,8 @@ def solve_multitau(qmap=None,
             dataset_method = ImmDataset
             use_loader = False
             batch_size = 256
+
+    logger.info(f"batch_size: {batch_size}")
 
     dset = dataset_method(raw,
                           batch_size=batch_size,
