@@ -2,10 +2,10 @@ import time
 import logging
 import os
 from xpcs_boost import XpcsBoost as XB
-from imm_handler import ImmDataset
-from rigaku_handler import RigakuDataset
-from hdf_handler import HdfDataset
-from xpcs_metadata import XpcsMetaData
+from .imm_handler import ImmDataset
+from .rigaku_handler import RigakuDataset
+from .hdf_handler import HdfDataset
+from .xpcs_metadata import XpcsMetaData
 import magic
 import torch
 from torch.utils.data import DataLoader

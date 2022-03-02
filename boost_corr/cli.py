@@ -2,8 +2,8 @@ import sys
 import json
 import traceback
 import argparse
-from .xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
-from .xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
+from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
+from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
 
 
 def convert_to_list(input_str: str):
