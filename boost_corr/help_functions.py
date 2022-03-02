@@ -40,7 +40,7 @@ def gen_tau_bin(frame_num, dpl=4, max_level=60):
         tau_bin.append([x, y])
 
     # make it a 2-column array
-    tau_bin = np.array(tau_bin, dtype=np.int).T
+    tau_bin = np.array(tau_bin, dtype=np.int64).T
     return tau_bin
 
 
