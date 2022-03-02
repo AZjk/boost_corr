@@ -92,7 +92,6 @@ def solve_twotime(qmap=None,
             dataset_method = ImmDataset
             use_loader = False
             batch_size = 256
-    batch_size = 1
     logger.info(f"batch_size: {batch_size}")
     dset = dataset_method(raw, batch_size=batch_size, device=device,
                           mask_crop=mask_crop, avg_frame=avg_frame,
