@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 key_map = {
     "dqmap": "/data/dynamicMap",
     "sqmap": "/data/staticMap",
-    "mask": "data/mask",
+    "mask": "/data/mask",
     "sphilist": "/data/sphival",
     "dphilist": "/data/dphival"
 }
