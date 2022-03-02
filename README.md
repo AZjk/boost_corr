@@ -14,7 +14,7 @@ Installation (updated on 02/28/2022)
 * create new virtual environment use conda. Python version is specified here because the pytorch package only supports python 3.7-3.9. You can also use "python -m venv" or "virtualenv" to create a virutal enviroment.
 
 	YOUR_ENV_NAME=boost_corr_test
-        conda create -n YOUR_ENV_NAME 
+        conda create -n YOUR_ENV_NAME python=3.9 
 
 * activate your new environment
         
