@@ -2,9 +2,15 @@ import sys
 import json
 import traceback
 import argparse
+import logging
 from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
 from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
+    datefmt="%m-%d %H:%M:%S")
 
 def convert_to_list(input_str: str):
     """
