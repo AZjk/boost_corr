@@ -10,12 +10,6 @@ import magic
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
-    datefmt="%m-%d %H:%M:%S")
-
-
 logger = logging.getLogger(__name__)
 
 

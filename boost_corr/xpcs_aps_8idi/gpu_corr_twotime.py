@@ -11,11 +11,6 @@ from .. import TwotimeCorrelator
 # from torch.profiler import profile, record_function, ProfilerActivity
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
-    datefmt="%m-%d %H:%M:%S")
-
 logger = logging.getLogger(__name__)
 
 

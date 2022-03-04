@@ -10,6 +10,11 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0"
 
+
+import logging
+logging.getLogger('boost_corr').addHandler(logging.NullHandler())
+
+
 from .multitau import MultitauCorrelator
 from .twotime import TwotimeCorrelator
 __all__ = (MultitauCorrelator, TwotimeCorrelator)
