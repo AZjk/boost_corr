@@ -9,7 +9,7 @@ do
   idx=$(printf "%03d" $i)
   echo " "
   echo $idx
-   python gpu_corr.py \
+   boost_corr \
        --batch_size 4 \
        --gpu_id 0    \
        --raw /clhome/MQICHU/ssd/APSU_TestData_202106/APSU_TestData_$idx/APSU_TestData_$idx.h5\
