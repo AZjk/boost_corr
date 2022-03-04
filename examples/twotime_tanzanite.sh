@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python gpu_corr_cmd.py \
+boost_corr \
 	-t 'Twotime' \
 	-i -1 \
 	-r /data/xpcs8/2022-1/leheny202202/A056_Ludox15_att00_L2M_quiescent_001/A056_Ludox15_att00_L2M_quiescent_001_001..h5 \

@@ -1,5 +1,5 @@
 #  gpu_corr_shell \
-python gpu_corr.py \
+boost_corr \
         --batch_size 1024 \
         -i 2 \
         -r /clhome/MQICHU/ssd/A050_Cu3Au_1bit_att0/A050_Cu3Au_1bit_att0.h5 \
