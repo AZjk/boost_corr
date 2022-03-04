@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# perform aps xpcs multitau correlation on real data
 DATA_DIR='/scratch'
 
 # imm example

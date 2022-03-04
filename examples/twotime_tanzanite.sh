@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# perform aps xpcs twotime correlation on real data
 boost_corr \
 	-t 'Twotime' \
 	-i -1 \
