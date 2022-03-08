@@ -5,6 +5,7 @@ import argparse
 import logging
 from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
 from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
+from boost_corr.xpcs_aps_8idi.gpu_record import get_gpu, release_gpu
 
 
 logging.basicConfig(
@@ -171,6 +172,11 @@ if args.config is not None:
             del config[key]
     kwargs.update(config)
 
+# automatically obtain gpu id
+gpu_id_auto = None 
+if kwargs['gpu_id'] == -2:
+    gpu_id_auto = get_gpu()
+    kwargs['gpu_id'] = gpu_id_auto
 
 def main():
     flag = 0
@@ -194,6 +200,11 @@ def main():
         except Exception:
             flag = 1
             traceback.print_exc()
+
+        # relase gpu_id_auto
+        if gpu_id_auto is not None:
+            release_gpu(gpu_id_auto)
+
     # send the result's fname to std-out
     print(ans)
     sys.exit(flag)
