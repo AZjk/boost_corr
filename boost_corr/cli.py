@@ -49,8 +49,8 @@ default_config = {
     "overwrite": False
 }
 
-description = ("Compute Multi-tau/Twotime correlation for XPCS datasets on "
-               "GPU/CPU")
+description = ("Compute Multi-tau/Twotime correlation for APS-8IDI XPCS "
+               "datasets on GPU/CPU")
 parser = argparse.ArgumentParser(description=description)
 
 parser.add_argument("-r",
