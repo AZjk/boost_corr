@@ -1,0 +1,15 @@
+{
+  "qmap": "/data/xpcs8/partitionMapLibrary/2022-1/leheny202202_qmap_2M_Test_S360_D60_A009.h5",
+  "output": "/tmp/cluster_resulters",
+  "smooth": "sqmap",
+  "gpu_id": 0,                      
+  "begin_frame": 1,          
+  "end_frame": -1,
+  "stride_frame": 1, 
+  "avg_frame": 1,
+  "type": "Multitau",
+  "dq_selection": "all",
+  "verbose": true,
+  "overwrite": false,
+  "dryrun": false
+}
