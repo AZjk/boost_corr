@@ -234,7 +234,8 @@ class XpcsQPartitionMap(object):
     def normalize_data(self, res):
         flag_crop = res['mask_crop'] is not None
         saxs1d = self.normalize_sqmap(res["saxs2d"], flag_crop)
-        saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)
+        # make saxs2d has ndim of 2 instead of 3.
+        saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)[0]
         saxs1d_par = self.normalize_sqmap(res["saxs2d_par"], flag_crop)
         g2, g2_err = self.compute_g2(res["g2"], flag_crop)
         output_dir = {
