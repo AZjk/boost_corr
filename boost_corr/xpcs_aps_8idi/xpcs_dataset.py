@@ -8,7 +8,7 @@ np_torch_map = {
     np.uint8: torch.uint8,
     np.uint16: torch.int16,
     np.int16: torch.int16,
-    np.int32: torch.int32,
+    np.uint32: torch.int32,
 }
 
 logger = logging.getLogger(__name__)
