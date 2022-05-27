@@ -4,7 +4,11 @@ import numpy as np
 import hdf5plugin
 import h5py
 import torch
+import logging
 from .xpcs_dataset import XpcsDataset
+
+
+logger = logging.getLogger(__name__)
 
 
 class HdfDataset(XpcsDataset):
@@ -30,7 +34,14 @@ class HdfDataset(XpcsDataset):
             # update data type;
             # lambda2m's uint16 is actually 12bit
             if data.dtype in [np.uint8, np.uint16]:
+                if self.dtype == np.uint16:
+                    logger.warn('cast uint16 to int16. it may cause ' + 
+                                'overflow when the maximal value >= 2^15')
                 self.dtype = np.int16
+            elif data.dtype == np.uint32:
+                self.dtype = np.int32
+                logger.warn('cast uint32 to int32. it may cause ' + 
+                            'overflow when the maximal value >= 2^31')
             else:
                 self.dtype = data.dtype
 
