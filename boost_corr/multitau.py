@@ -190,12 +190,23 @@ class MultitauCorrelator(object):
 
         return queue_size, queue_level
 
+    def process_numpy(self, *args):
+        if not self.is_sparse:
+            y = torch.from_numpy(args[0]).to(self.device)
+            self.__process_dense__(y)
+        else:
+            index, frame, count, size = args
+            index = torch.from_numpy(index).to(self.device)
+            frame = torch.from_numpy(frame).to(self.device)
+            count = torch.from_numpy(count).to(self.device)
+            self.__process_sparse__(index, frame, count, size)
+
     def process(self, *args):
         if not self.is_sparse:
             self.__process_dense__(*args)
         else:
             self.__process_sparse__(*args)
-
+    
     def __process_sparse__(self, index, frame, count, size):
         x = torch.zeros((size, self.pixel_num),
                         count.dtype,
