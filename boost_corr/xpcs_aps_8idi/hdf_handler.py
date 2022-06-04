@@ -32,12 +32,15 @@ class HdfDataset(XpcsDataset):
             self.shape = data.shape
 
             # update data type;
-            # lambda2m's uint16 is actually 12bit
-            if data.dtype in [np.uint8, np.uint16]:
-                if self.dtype == np.uint16:
-                    logger.warn('cast uint16 to int16. it may cause ' + 
-                                'overflow when the maximal value >= 2^15')
+            if data.dtype == np.uint8:
                 self.dtype = np.int16
+            elif data.dtype == np.uint16:
+                # lambda2m's uint16 is actually 12bit. it's safe to to int16
+                if self.shape[0] * self.shape[1] == 1813 * 1558:
+                    self.dtype = np.int16
+                # likely eiger detectors
+                else:
+                    self.dtype = np.int32
             elif data.dtype == np.uint32:
                 self.dtype = np.int32
                 logger.warn('cast uint32 to int32. it may cause ' + 
