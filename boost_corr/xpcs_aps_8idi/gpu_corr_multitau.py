@@ -57,7 +57,8 @@ def solve_multitau(qmap=None,
     logger.info("QPartitionMap instance created.")
     logger.info(f"masked area: {qpm.masked_pixels}")
     logger.info(f"masked area ratio: {qpm.masked_ratio:0.3f}")
-    result_file = XpcsResult(meta_dir, qmap, output, overwrite=overwrite)
+    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
+                             stride_frame=stride_frame, overwrite=overwrite)
 
     # determine whether to use mask or not based on the mask"s ratio
     if qpm.masked_ratio > masked_ratio_threshold:

@@ -33,6 +33,8 @@ class XpcsResult(object):
                  qmap_fname: str,
                  output_dir: str,
                  overwrite=False,
+                 avg_frame=1,
+                 stride_frame=1,
                  analysis_type='Multitau') -> None:
         super().__init__()
 
@@ -51,8 +53,8 @@ class XpcsResult(object):
             idx += 1
         self.fname = fname
 
-        append_qmap(meta_fname, qmap_fname, fname,
-                    analysis_type=analysis_type)
+        append_qmap(meta_fname, qmap_fname, fname, avg_frame=avg_frame,
+                    stride_frame=stride_frame, analysis_type=analysis_type)
 
     def save(self, result_dict, mode="alias", compression=None, **kwargs):
         put(self.fname, result_dict, mode=mode, compression=compression,

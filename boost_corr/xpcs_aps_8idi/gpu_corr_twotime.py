@@ -26,6 +26,7 @@ def solve_twotime(qmap=None,
                   stride_frame=1,
                   dq_selection=None,
                   smooth='sqmap',
+                  overwrite=False,
                   **kwargs):
 
     log_level = logging.ERROR
@@ -59,7 +60,9 @@ def solve_twotime(qmap=None,
     logger.info("QPartitionMap instance created.")
     logger.info(f"masked area: {qpm.masked_pixels}")
     logger.info(f"masked area ratio: {qpm.masked_ratio:0.3f}")
-    result_file = XpcsResult(meta_dir, qmap, output, analysis_type='Twotime')
+    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
+                             stride_frame=stride_frame, overwrite=overwrite,
+                             analysis_type='Twotime')
 
     # determine whether to use mask or not based on the mask"s ratio
     # if qpm.masked_ratio > masked_ratio_threshold:
