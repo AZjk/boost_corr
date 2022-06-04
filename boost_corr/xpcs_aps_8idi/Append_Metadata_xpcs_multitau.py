@@ -5,7 +5,8 @@ import os
 import numpy as np
 
 
-def append_qmap(meta_fname, qmap_fname, output_fname, entry='/xpcs',
+def append_qmap(meta_fname, qmap_fname, output_fname,
+                avg_frame=1, stride_frame=1, entry='/xpcs',
                 entry_out='/exchange', analysis_type='Multitau'):
 
     # Open the three .h5 files
@@ -145,14 +146,14 @@ def append_qmap(meta_fname, qmap_fname, output_fname, entry='/xpcs',
 
     temp = output_file.create_dataset(
         entry+"/stride_frames", (1, 1), dtype='uint64')
-    temp[(0, 0)] = 1
+    temp[(0, 0)] = stride_frame
     temp = output_file.create_dataset(
         entry+"/stride_frames_burst", (1, 1), dtype='uint64')
     temp[(0, 0)] = 1
 
     temp = output_file.create_dataset(
         entry+"/avg_frames", (1, 1), dtype='uint64')
-    temp[(0, 0)] = 1
+    temp[(0, 0)] = avg_frame
     temp = output_file.create_dataset(
         entry+"/avg_frames_burst", (1, 1), dtype='uint64')
     temp[(0, 0)] = 1
