@@ -133,7 +133,10 @@ class TwotimeCorrelator():
         cache = self.cache.T
         for n in range(len(slc)):
             avg = cache[slc[n]].mean(dim=0)
+            # get rid of the zeros
+            avg[avg <= 0] = 1
             cache[slc[n]] /= avg
+
         self.cache = cache.T
         return
 
