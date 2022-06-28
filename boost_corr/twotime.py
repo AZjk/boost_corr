@@ -222,6 +222,7 @@ class TwotimeCorrelator():
                 wf = wf / self.sdata[self.dq_slc[n]]
 
             aa = torch.sum(wf, dim=1)
+            aa[aa <= 0] = 1
             aa_inverse = 1.0 / aa
 
             ab = torch.matmul(wf, wf.T)
