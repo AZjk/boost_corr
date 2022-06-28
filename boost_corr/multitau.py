@@ -276,7 +276,7 @@ class MultitauCorrelator(object):
 
         if level == 0:
             # sl = slice(self.current_frame - end + beg, self.current_frame)
-            self.intt.append(torch.mean(self.ct[level][beg:end], dim=1))
+            self.intt.append(torch.mean(self.ct[level][beg:end].float(), dim=1))
 
         # the number of elements should be an even number for all; but the
         # last call can be an odd number; advance the event; the left element
