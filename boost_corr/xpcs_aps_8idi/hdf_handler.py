@@ -47,7 +47,9 @@ class HdfDataset(XpcsDataset):
                             'overflow when the maximal value >= 2^31')
             else:
                 self.dtype = data.dtype
-
+        
+        if kwargs['avg_frame'] > 1:
+            self.dtype = np.float32
         self.fhdl = None
         self.data = None
         self.data_cache = None
