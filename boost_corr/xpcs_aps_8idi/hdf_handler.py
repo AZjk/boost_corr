@@ -36,7 +36,7 @@ class HdfDataset(XpcsDataset):
                 self.dtype = np.int16
             elif data.dtype == np.uint16:
                 # lambda2m's uint16 is actually 12bit. it's safe to to int16
-                if self.shape[0] * self.shape[1] == 1813 * 1558:
+                if self.shape[1] * self.shape[2] == 1813 * 1558:
                     self.dtype = np.int16
                 # likely eiger detectors
                 else:
@@ -63,6 +63,7 @@ class HdfDataset(XpcsDataset):
 
         self.current_group = None
         self.preload_size = preload_size
+        self.cache = None
 
     def __reset__(self):
         if self.fhdl is not None:
@@ -79,19 +80,16 @@ class HdfDataset(XpcsDataset):
             self.data = self.fhdl[self.data_path]
 
         beg, end, size = self.get_raw_index(idx)
+        if self.cache is None or self.cache.shape[0] != size:
+            self.cache = np.zeros(shape=(size, self.shape[1], self.shape[2]), dtype=self.dtype)
+
         idx_list = np.arange(beg, end, self.stride)
 
+        self.data.read_direct(self.cache, np.s_[beg:end:self.stride])
+        x = self.cache.reshape(size, self.pixel_num)
         if self.mask_crop is not None:
-            # x = self.data[beg:end, self.sl_v, self.sl_h].reshape(end - beg, -1)
-            x = self.data[idx_list].reshape(size, -1)
-            x = x[:, self.mask_crop].astype(self.dtype)
-            # if idx == 0:
-            #     print(np.max(x), x.dtype)
-        else:
-            x = self.data[idx_list].reshape(-1, self.pixel_num)
+            x = x[:, self.mask_crop]
 
-        if x.dtype != self.dtype:
-            x = x.astype(self.dtype)
         return torch.from_numpy(x)
 
 
