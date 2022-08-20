@@ -36,7 +36,7 @@ class HdfDataset(XpcsDataset):
                 self.dtype = np.int16
             elif data.dtype == np.uint16:
                 # lambda2m's uint16 is actually 12bit. it's safe to to int16
-                if self.shape[0] * self.shape[1] == 1813 * 1558:
+                if self.shape[1] * self.shape[2] == 1813 * 1558:
                     self.dtype = np.int16
                 # likely eiger detectors
                 else:
@@ -75,7 +75,7 @@ class HdfDataset(XpcsDataset):
         return numpy array, which will be converted to tensor with dataloader
         """
         if self.fhdl is None:
-            self.fhdl = h5py.File(self.fname, 'r')
+            self.fhdl = h5py.File(self.fname, 'r', rdcc_nbytes=1024*1024*256)
             self.data = self.fhdl[self.data_path]
 
         beg, end, size = self.get_raw_index(idx)
