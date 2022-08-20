@@ -129,7 +129,8 @@ class XpcsQPartitionMap(object):
             self.sqmap = np.swapaxes(self.sqmap, 0, 1)
             self.mask = np.swapaxes(self.mask, 0, 1)
             self.det_size = self.mask.shape
-            assert self.det_size == det_size
+            assert self.det_size == det_size, \
+                    "The shape of QMap does not match the raw data shape"
             # need redo the preprocessing
             self.group_qmap()
             return True
