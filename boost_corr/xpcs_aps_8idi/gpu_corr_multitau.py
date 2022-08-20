@@ -19,7 +19,7 @@ def solve_multitau(qmap=None,
                    batch_size=8,
                    gpu_id=0,
                    verbose=False,
-                   masked_ratio_threshold=0.75,
+                   masked_ratio_threshold=0.85,
                    use_loader=True,
                    begin_frame=3,
                    end_frame=-1,
@@ -56,7 +56,7 @@ def solve_multitau(qmap=None,
     qpm = XpcsQPartitionMap(qmap, device=device)
     logger.info("QPartitionMap instance created.")
     logger.info(f"masked area: {qpm.masked_pixels}")
-    logger.info(f"masked area ratio: {qpm.masked_ratio:0.3f}")
+    logger.info(f"masked area ratio/threshold: {qpm.masked_ratio:0.3f}/{masked_ratio_threshold:0.3f}")
     result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
                              stride_frame=stride_frame, overwrite=overwrite)
 
@@ -81,7 +81,7 @@ def solve_multitau(qmap=None,
         if ftype == "Hierarchical Data Format (version 5) data":
             dataset_method = HdfDataset
             use_loader = True
-            batch_size = 1
+            batch_size = 8
         else:
             dataset_method = ImmDataset
             use_loader = False
