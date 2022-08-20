@@ -119,6 +119,7 @@ class XpcsDataset(object):
             valid_size = self.mask_crop.shape[0]
         else:
             valid_size = self.pixel_num
+        logger.info(f'dtype is: {self.dtype}')
         logger.info(f'valid_size: {valid_size}')
         logger.info('sparsity: %.4f' % self.get_sparsity())
         logger.info('raw dataset file size: {:,} MB'.format(
