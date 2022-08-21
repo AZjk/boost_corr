@@ -50,7 +50,7 @@ class MultitauCorrelator(object):
                  queue_level: int = 4,
                  auto_queue=True,
                  mask_crop=None,
-                 max_memory=24.0,
+                 max_memory=32.0,
                  max_count=7) -> None:
 
         self.det_size = det_size
@@ -322,7 +322,7 @@ class MultitauCorrelator(object):
                         ds,
                         verbose=True,
                         use_loader=False,
-                        num_workers=8):
+                        num_workers=16):
         if not use_loader:
             xrange = trange if verbose else range
             for n in xrange(len(ds)):
@@ -333,10 +333,13 @@ class MultitauCorrelator(object):
             dl = DataLoader(ds,
                             batch_size=None,
                             pin_memory=pin_memory,
-                            num_workers=num_workers)
-            # logger.info(f'using {num_workers} workers to load data')
+                            num_workers=num_workers,
+                            prefetch_factor=4)
+            logger.info(f'using {num_workers} workers to load data')
+
             # for x in tqdm(dl, total=len(ds), desc='progress'):
             for x in dl:
+                x = x.to(self.device, non_blocking=True)
                 self.process(x)
 
         self.post_process()
