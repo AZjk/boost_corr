@@ -353,7 +353,7 @@ class MultitauCorrelator(object):
             'intt': intt.float(),
             'saxs2d': self.saxs_2d.float(),
             'saxs2d_par': self.saxs_2d_par.float(),
-            'g2': self.g2.float(),
+            'G2': self.g2.float(),
             'mask_crop': self.mask_crop,
             'tau': self.tau_bin[0, :]
         }

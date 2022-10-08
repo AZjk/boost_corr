@@ -56,12 +56,11 @@ class XpcsResult(object):
 
         try:
             append_qmap(meta_fname, qmap_fname, fname, avg_frame=avg_frame,
-                    stride_frame=stride_frame, analysis_type=analysis_type)
+                        stride_frame=stride_frame, analysis_type=analysis_type)
         except Exception:
             traceback.print_exc()
             raise IOError(f'Check metadata file {meta_fname}')
-            
-
+        
     def save(self, result_dict, mode="alias", compression=None, **kwargs):
         put(self.fname, result_dict, mode=mode, compression=compression,
             **kwargs)

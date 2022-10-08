@@ -46,7 +46,8 @@ default_config = {
     "dq_selection": "all",
     "verbose": False,
     "dryrun": False,
-    "overwrite": False
+    "overwrite": False,
+    "save_G2": False,
 }
 
 description = ("Compute Multi-tau/Twotime correlation for APS-8IDI XPCS "
@@ -150,6 +151,11 @@ parser.add_argument("--verbose",
                     action="store_true",
                     help="verbose")
 
+parser.add_argument("--save_G2",
+                    default=default_config['save_G2'],
+                    action="store_true",
+                    help="save G2, IP, IF to file")
+
 parser.add_argument("--dryrun",
                     "-dr",
                     default=default_config['dryrun'],
@@ -196,6 +202,7 @@ gpu_id_auto = None
 if kwargs['gpu_id'] == -2:
     gpu_id_auto = get_gpu()
     kwargs['gpu_id'] = gpu_id_auto
+
 
 def main():
     flag = 0

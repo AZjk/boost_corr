@@ -26,6 +26,7 @@ def solve_multitau(qmap=None,
                    avg_frame=7,
                    stride_frame=5,
                    overwrite=False,
+                   save_G2=False,
                    **kwargs):
 
     log_level = logging.ERROR
@@ -85,7 +86,7 @@ def solve_multitau(qmap=None,
         else:
             dataset_method = ImmDataset
             use_loader = False
-            batch_size = 256
+            batch_size = 8
 
     logger.info(f"batch_size: {batch_size}")
 
@@ -126,7 +127,7 @@ def solve_multitau(qmap=None,
 
     t_start = time.perf_counter()
     result = xb.get_results()
-    result = qpm.normalize_data(result)
+    result = qpm.normalize_data(result, save_G2=save_G2)
     result_file.save(result)
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
