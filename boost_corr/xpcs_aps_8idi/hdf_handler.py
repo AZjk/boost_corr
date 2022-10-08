@@ -76,7 +76,7 @@ class HdfDataset(XpcsDataset):
         return numpy array, which will be converted to tensor with dataloader
         """
         if self.fhdl is None:
-            self.fhdl = h5py.File(self.fname, 'r')
+            self.fhdl = h5py.File(self.fname, 'r', rdcc_nbytes=1024*1024*256)
             self.data = self.fhdl[self.data_path]
 
         beg, end, size = self.get_raw_index(idx)

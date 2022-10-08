@@ -129,7 +129,8 @@ class XpcsQPartitionMap(object):
             self.sqmap = np.swapaxes(self.sqmap, 0, 1)
             self.mask = np.swapaxes(self.mask, 0, 1)
             self.det_size = self.mask.shape
-            assert self.det_size == det_size
+            assert self.det_size == det_size, \
+                    "The shape of QMap does not match the raw data shape"
             # need redo the preprocessing
             self.group_qmap()
             return True
@@ -231,13 +232,13 @@ class XpcsQPartitionMap(object):
         full_img = full_img.reshape(1, *self.det_size)
         return full_img
 
-    def normalize_data(self, res):
+    def normalize_data(self, res, save_G2=False):
         flag_crop = res['mask_crop'] is not None
         saxs1d = self.normalize_sqmap(res["saxs2d"], flag_crop)
         # make saxs2d has ndim of 2 instead of 3.
         saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)[0]
         saxs1d_par = self.normalize_sqmap(res["saxs2d_par"], flag_crop)
-        g2, g2_err = self.compute_g2(res["g2"], flag_crop)
+        g2, g2_err = self.compute_g2(res["G2"], flag_crop)
         output_dir = {
             'saxs_2d': saxs2d,
             'saxs_1d': saxs1d,
@@ -247,6 +248,14 @@ class XpcsQPartitionMap(object):
             'g2': g2,
             'g2_err': g2_err
         }
+        # self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
+        if save_G2:
+            G2 = res["G2"].reshape(-1, 3, *self.det_size)
+            output_dir['G2'] = G2[:, 0]
+            output_dir['IP'] = G2[:, 1]
+            output_dir['IF'] = G2[:, 2]
+            print(output_dir['G2'].shape)
+
         for k, v in output_dir.items():
             if isinstance(v, torch.Tensor):
                 output_dir[k] = v.float().cpu().numpy()

@@ -2,6 +2,7 @@ import os
 import h5py
 import logging
 import glob2
+import traceback
 from .Append_Metadata_xpcs_multitau import append_qmap
 from .hdf_reader import put
 
@@ -53,9 +54,13 @@ class XpcsResult(object):
             idx += 1
         self.fname = fname
 
-        append_qmap(meta_fname, qmap_fname, fname, avg_frame=avg_frame,
-                    stride_frame=stride_frame, analysis_type=analysis_type)
-
+        try:
+            append_qmap(meta_fname, qmap_fname, fname, avg_frame=avg_frame,
+                        stride_frame=stride_frame, analysis_type=analysis_type)
+        except Exception:
+            traceback.print_exc()
+            raise IOError(f'Check metadata file {meta_fname}')
+        
     def save(self, result_dict, mode="alias", compression=None, **kwargs):
         put(self.fname, result_dict, mode=mode, compression=compression,
             **kwargs)
