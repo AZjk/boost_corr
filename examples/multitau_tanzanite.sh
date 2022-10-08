@@ -11,6 +11,7 @@ boost_corr \
 A005_Dragonite_25p_Quiescent_att0_Lq0_001_00001-20000.imm \
     --qmap ${DATA_DIR}/xpcs_data_raw/qmap/harden201912_qmap_Dragonite_Lq0_S270_D54.h5 \
     --output ${DATA_DIR}/cluster_results \
+    --save_G2 \
     --verbose
 
 # rigaku example
