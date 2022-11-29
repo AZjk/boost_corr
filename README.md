@@ -20,10 +20,10 @@ Installation (updated on 02/28/2022)
         
         conda activate YOUR_ENV_NAME
 
-* install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/)
+* install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/), for example:
 	
-	conda install -c nvidia cudatoolkit
-	conda install -c pytorch pytorch 
+        conda install pytorch==1.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
+
 
 * clone and install boost-corr
         
