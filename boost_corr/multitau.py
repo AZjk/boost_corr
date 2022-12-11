@@ -108,6 +108,7 @@ class MultitauCorrelator(object):
         self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
                               dtype=torch.float32,
                               device=self.device)
+        self.g2_norm = torch.zeros_like(self.g2)
         # pointer to the data enty in each level
         self.pt = [self.tau_rev] * levels_num
 
@@ -192,7 +193,7 @@ class MultitauCorrelator(object):
 
     def process_numpy(self, *args):
         if not self.is_sparse:
-            y = torch.from_numpy(args[0]).to(self.device)
+            y = torch.from_numpy(args[0]).to(self.device, non_blocking=True)
             self.__process_dense__(y)
         else:
             index, frame, count, size = args
@@ -306,16 +307,22 @@ class MultitauCorrelator(object):
             # IP = (x / scl)             / eff_len  -> eff_len * scl
             # IF = (y / scl)             / eff_len  -> eff_len * scl
             for _, tid, eff_length in self.tau_in_level[level]:
-                self.g2[tid, 0] /= (eff_length * 2**(level * 2))
-                self.g2[tid, 1:3] += tot
-                self.g2[tid, 1:3] /= eff_length * 2**level
+                # self.g2[tid, 0] /= (eff_length * 2**(level * 2))
+                # self.g2[tid, 1:3] += tot
+                # self.g2[tid, 1:3] /= eff_length * 2**level
+                self.g2_norm[tid, 0] = self.g2[tid, 0] / (eff_length * 2**(level * 2))
+                self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] + tot
+                self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] / (eff_length * 2**level)
 
         # get saxs2d
-        self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
-        if len(self.saxs_2d_par) > 0:
-            self.saxs_2d_par = torch.vstack(self.saxs_2d_par) / self.frame_num
-        else:
-            self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
+        # self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        self.saxs_2d = torch.unsqueeze(tot, 0)
+
+        # if len(self.saxs_2d_par) > 0:
+        #     self.saxs_2d_par = torch.vstack(self.saxs_2d_par) / self.frame_num
+        # else:
+        #     self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
+        self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
         return
 
     def process_dataset(self,
@@ -345,15 +352,15 @@ class MultitauCorrelator(object):
         self.post_process()
 
     def get_results(self):
-        intt = torch.hstack(self.intt).float()
-        tline = torch.arange(intt.shape[0], device=intt.device)
-        intt = torch.vstack([tline, intt])
+        # intt = torch.hstack(self.intt).float()
+        # tline = torch.arange(intt.shape[0], device=intt.device)
+        # intt = torch.vstack([tline, intt])
 
         output_dir = {
-            'intt': intt.float(),
-            'saxs2d': self.saxs_2d.float(),
-            'saxs2d_par': self.saxs_2d_par.float(),
-            'G2': self.g2.float(),
+            # 'intt': intt.float(),
+            'saxs2d': self.saxs_2d.float().reshape(self.det_size),
+            # 'saxs2d_par': self.saxs_2d_par.float(),
+            'G2': self.g2_norm.float(),
             'mask_crop': self.mask_crop,
             'tau': self.tau_bin[0, :]
         }
