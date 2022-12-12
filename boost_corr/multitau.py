@@ -119,14 +119,15 @@ class MultitauCorrelator(object):
         while self.frame_num // (2**self.par_level) > 16:
             self.par_level += 1
 
-        # self.intt = torch.zeros(size=(frame_num, 2), dtype=torch.float32)
-        self.intt = []
+        self.intt = torch.zeros(size=(self.frame_num,), dtype=torch.float32)
+        # self.intt = []
         self.saxs_2d = None
         self.saxs_2d_par = []
 
         self.levels = levels
         self.tau_in_level = tau_in_level
         self.current_frame = 0
+        self.current_frame_used = 0
 
     def describe(self):
         logger.info(
@@ -153,10 +154,12 @@ class MultitauCorrelator(object):
 
         # advanced flag
         self.ad = [False] * self.levels_num
-        self.intt = []
+        # self.intt = []
+        self.intt = torch.zeros(size=(self.frame_num,), dtype=torch.float32)
         self.saxs_2d = None
         self.saxs_2d_par = []
         self.current_frame = 0
+        self.current_frame_used = 0
 
     def auto_set_queue(self, min_queue_size, overhead=0.25):
         # the size of each frame in all levels;
@@ -272,12 +275,8 @@ class MultitauCorrelator(object):
                 sl = slice(end - tau, end)
                 self.g2[tid, 2] -= torch.sum(self.ct[level][sl], dim=0)
 
-        if level == self.par_level:
-            self.saxs_2d_par.append(self.ct[level][beg:end].clone().detach())
-
-        if level == 0:
-            # sl = slice(self.current_frame - end + beg, self.current_frame)
-            self.intt.append(torch.mean(self.ct[level][beg:end].float(), dim=1))
+        # if level == self.par_level:
+        #     self.saxs_2d_par.append(self.ct[level][beg:end].clone().detach())
 
         # the number of elements should be an even number for all; but the
         # last call can be an odd number; advance the event; the left element
@@ -294,7 +293,17 @@ class MultitauCorrelator(object):
         tmp = self.ct[level][avg_len:end].clone().detach()
         self.ct[level][0:end - avg_len] = tmp
 
+        if level == 0:
+            sl = slice(self.current_frame_used, self.current_frame)
+            self.intt[sl] = torch.mean(self.ct[level][beg:end].float(), dim=1)
+            self.current_frame_used += end - beg 
+
         return x
+ 
+    def calc_eff_length(self, level, tau):
+        scale = 2 ** level
+        avg_len = self.current_frame_used // scale - tau
+        return avg_len
 
     def post_process(self):
         # rescale the average and add total flux to IP and IF
@@ -306,10 +315,11 @@ class MultitauCorrelator(object):
             # G2 = (x / scl) * (y / scl) / eff_len  -> eff_len * scl ^ 2
             # IP = (x / scl)             / eff_len  -> eff_len * scl
             # IF = (y / scl)             / eff_len  -> eff_len * scl
-            for _, tid, eff_length in self.tau_in_level[level]:
+            for tau, tid, eff_length0 in self.tau_in_level[level]:
                 # self.g2[tid, 0] /= (eff_length * 2**(level * 2))
                 # self.g2[tid, 1:3] += tot
                 # self.g2[tid, 1:3] /= eff_length * 2**level
+                eff_length = self.calc_eff_length(level, tau)
                 self.g2_norm[tid, 0] = self.g2[tid, 0] / (eff_length * 2**(level * 2))
                 self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] + tot
                 self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] / (eff_length * 2**level)
@@ -357,13 +367,31 @@ class MultitauCorrelator(object):
         # intt = torch.vstack([tline, intt])
 
         output_dir = {
-            # 'intt': intt.float(),
+            'intt': self.intt.float(),
             'saxs2d': self.saxs_2d.float().reshape(self.det_size),
             # 'saxs2d_par': self.saxs_2d_par.float(),
             'G2': self.g2_norm.float(),
             'mask_crop': self.mask_crop,
             'tau': self.tau_bin[0, :]
         }
+        return output_dir
+    
+    def get_results_report(self):
+        # tline = torch.arange(intt.shape[0], device=intt.device)
+        # intt = torch.vstack([tline, intt])
+
+        output_dir = {
+            'intt': self.intt.float()[0:self.current_frame_used],
+            'saxs2d': self.saxs_2d.float().reshape(self.det_size),
+            # 'saxs2d_par': self.saxs_2d_par.float(),
+            # 'G2': self.g2_norm.float(),
+            # 'mask_crop': self.mask_crop,
+            # 'tau': self.tau_bin[0, :]
+        }
+
+        for k, v in output_dir.items():
+            if isinstance(v, torch.Tensor):
+                output_dir[k] = v.cpu().numpy()
 
         return output_dir
 
