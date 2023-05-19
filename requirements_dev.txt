@@ -1,5 +1,4 @@
 h5py
-hdf5
 hdf5plugin
 python-magic
 matplotlib
