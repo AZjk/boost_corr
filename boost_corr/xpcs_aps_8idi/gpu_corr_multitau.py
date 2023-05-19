@@ -78,7 +78,9 @@ def solve_multitau(qmap=None,
         use_loader = False
         batch_size = 1024
     elif ext in [".imm", ".h5", ".hdf"]:
-        ftype = magic.from_file(raw)
+        real_raw = os.path.realpath(raw)
+        ftype = magic.from_file(real_raw)
+        logger.info(f'rawdata filetype: {ftype}')
         if ftype == 'empty':
             raise Exception('The raw file is damaged.')
         elif ftype == "Hierarchical Data Format (version 5) data":
