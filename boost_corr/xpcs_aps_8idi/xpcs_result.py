@@ -1,7 +1,7 @@
 import os
 import h5py
 import logging
-import glob2
+import glob
 import traceback
 from .Append_Metadata_xpcs_multitau import append_qmap
 from .hdf_reader import put
@@ -21,7 +21,7 @@ def is_metadata(fname: str):
 
 
 def get_metadata(meta_dir: str):
-    meta_fname = glob2.glob(meta_dir + "/*.hdf")
+    meta_fname = glob.glob(meta_dir + "/*.hdf")
     for x in meta_fname:
         if is_metadata(x):
             return x
