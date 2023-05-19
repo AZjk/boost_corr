@@ -336,9 +336,13 @@ class MultitauCorrelator(object):
                             num_workers=num_workers,
                             prefetch_factor=4)
             logger.info(f'using {num_workers} workers to load data')
+            
+            if verbose:
+                container = tqdm(dl, total=len(ds), desc='progress')
+            else:
+                container = dl
 
-            # for x in tqdm(dl, total=len(ds), desc='progress'):
-            for x in dl:
+            for x in container:
                 x = x.to(self.device, non_blocking=True)
                 self.process(x)
 
