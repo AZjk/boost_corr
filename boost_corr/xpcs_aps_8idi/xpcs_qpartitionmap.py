@@ -18,6 +18,26 @@ key_map = {
 }
 
 
+def convert_to_list(input_str: str):
+    """
+    convert a string to a list of ints
+    """
+    if input_str == 'all':
+        return None
+
+    result = []
+    for part in input_str.split(','):
+        if part == '':
+            continue
+        elif '-' in part:
+            a, b = part.split('-')
+            result.extend(range(int(a), int(b) + 1))
+        else:
+            result.append(int(part))
+    result = sorted(list(set(result)))
+    return result
+
+
 def find_bin_count(qmap, minlength=None):
     count = np.bincount(qmap.ravel(), minlength=minlength)[1:]
     count = count.astype(np.int32)
@@ -50,7 +70,7 @@ def average(img, qmap, size=None, count=None):
 
 class XpcsQPartitionMap(object):
     def __init__(self, qmap_fname, flag_fix=True, flag_sort=False,
-                 dq_selection=None, device='cpu') -> None:
+                 dq_selection=None, device='cpu', dq_selection_str=None) -> None:
         super().__init__()
         self.fname = qmap_fname
         self.device = device
@@ -65,6 +85,8 @@ class XpcsQPartitionMap(object):
         self.qinfo = None
         self.flag_sort = flag_sort
         self.load(flag_fix)
+        if dq_selection is None and dq_selection_str is not None:
+            dq_selection = convert_to_list(dq_selection_str)
         self.group_qmap(dq_selection)
 
     def group_qmap(self, dq_selection=None):
@@ -237,28 +259,38 @@ class XpcsQPartitionMap(object):
         saxs1d = self.normalize_sqmap(res["saxs2d"], flag_crop)
         # make saxs2d has ndim of 2 instead of 3.
         saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)[0]
+        saxs2d_single = self.recover_dimension(res['saxs_2d_single'], flag_crop)
         saxs1d_par = self.normalize_sqmap(res["saxs2d_par"], flag_crop)
-        g2, g2_err = self.compute_g2(res["G2"], flag_crop)
+
         output_dir = {
             'saxs_2d': saxs2d,
             'saxs_1d': saxs1d,
             'Iqp': saxs1d_par,
             'Int_t': res['intt'],
-            'tau': res['tau'],
-            'g2': g2,
-            'g2_err': g2_err
+            'saxs_2d_single': saxs2d_single 
         }
-        # self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
-        if save_G2:
-            G2 = res["G2"].reshape(-1, 3, *self.det_size)
-            output_dir['G2'] = G2[:, 0]
-            output_dir['IP'] = G2[:, 1]
-            output_dir['IF'] = G2[:, 2]
-            print(output_dir['G2'].shape)
+        
+        if "G2" in res:
+            g2, g2_err = self.compute_g2(res["G2"], flag_crop)
+            output_dir['g2'] = g2
+            output_dir['g2_err'] = g2_err
+            output_dir['tau'] = res['tau']
+            # self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
+            if save_G2:
+                G2 = res["G2"].reshape(-1, 3, *self.det_size)
+                output_dir['G2'] = G2[:, 0]
+                output_dir['IP'] = G2[:, 1]
+                output_dir['IF'] = G2[:, 2]
+
+        if "C2" in res:
+            output_dir['c2'] = res['C2']
+            output_dir['shape'] = np.array(res['C2'].shape)
+            output_dir['slice'] = res['slice']
 
         for k, v in output_dir.items():
             if isinstance(v, torch.Tensor):
                 output_dir[k] = v.float().cpu().numpy()
+
         return output_dir
 
     def normalize_saxs(self, res):
