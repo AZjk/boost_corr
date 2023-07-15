@@ -13,6 +13,7 @@ logging.basicConfig(
     format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
     datefmt="%m-%d %H:%M:%S")
 
+
 def convert_to_list(input_str: str):
     """
     convert a string to a list of ints
@@ -198,7 +199,7 @@ if args.config is not None:
 kwargs['dq_selection'] = convert_to_list(kwargs['dq_selection'])
 
 # automatically obtain gpu id
-gpu_id_auto = None 
+gpu_id_auto = None
 if kwargs['gpu_id'] == -2:
     gpu_id_auto = get_gpu()
     kwargs['gpu_id'] = gpu_id_auto

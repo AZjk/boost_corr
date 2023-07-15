@@ -99,7 +99,6 @@ class MultitauCorrelator(object):
                                      dtype=self.dtype_list[n][0],
                                      device=self.device)
             self.tau_all.append(curr_tau_all)
-            # print(self.dtype_list[n])
 
         # account for the overflow photons
         self.ct_overflow = 0
@@ -128,6 +127,7 @@ class MultitauCorrelator(object):
         self.tau_in_level = tau_in_level
         self.current_frame = 0
         self.current_frame_used = 0
+        self.curr_img = torch.zeros(self.pixel_num, device=self.device) 
 
     def describe(self):
         logger.info(
@@ -154,8 +154,8 @@ class MultitauCorrelator(object):
 
         # advanced flag
         self.ad = [False] * self.levels_num
-        # self.intt = []
         self.intt = torch.zeros(size=(self.frame_num,), dtype=torch.float32)
+        self.curr_img = torch.zeros(self.pixel_num, device=self.device)
         self.saxs_2d = None
         self.saxs_2d_par = []
         self.current_frame = 0
@@ -210,7 +210,7 @@ class MultitauCorrelator(object):
             self.__process_dense__(*args)
         else:
             self.__process_sparse__(*args)
-    
+
     def __process_sparse__(self, index, frame, count, size):
         x = torch.zeros((size, self.pixel_num),
                         count.dtype,
@@ -231,6 +231,12 @@ class MultitauCorrelator(object):
                 pt0 = self.pt[level]
                 self.ct[level][pt0:pt0 + x.shape[0]] = x
                 self.pt[level] += x.shape[0]
+
+            if level == 0:
+                sl = slice(self.current_frame_used, self.current_frame_used + x.shape[0])
+                self.intt[sl] = torch.mean(x.float(), dim=1)
+                self.current_frame_used += x.shape[0]
+                self.curr_img[:] = x[-1]
 
             if self.pt[level] != self.tau_all[level] and not last_flag:
                 # most likely case
@@ -293,11 +299,6 @@ class MultitauCorrelator(object):
         tmp = self.ct[level][avg_len:end].clone().detach()
         self.ct[level][0:end - avg_len] = tmp
 
-        if level == 0:
-            sl = slice(self.current_frame_used, self.current_frame)
-            self.intt[sl] = torch.mean(self.ct[level][beg:end].float(), dim=1)
-            self.current_frame_used += end - beg 
-
         return x
  
     def calc_eff_length(self, level, tau):
@@ -306,29 +307,33 @@ class MultitauCorrelator(object):
         return avg_len
 
     def post_process(self):
+        pass
         # rescale the average and add total flux to IP and IF
-        tot = self.ct_overflow
-        for level in np.flip(self.levels):
-            sl = slice(self.tau_rev, self.pt[level])
-            tot = tot + torch.sum(self.ct[level][sl], dim=0)
-            # normalization
-            # G2 = (x / scl) * (y / scl) / eff_len  -> eff_len * scl ^ 2
-            # IP = (x / scl)             / eff_len  -> eff_len * scl
-            # IF = (y / scl)             / eff_len  -> eff_len * scl
-            for tau, tid, eff_length0 in self.tau_in_level[level]:
-                eff_length = self.calc_eff_length(level, tau)
-                if eff_length0 == 0:
-                    continue
+        # tot = self.ct_overflow
+        # for level in np.flip(self.levels):
+        #     sl = slice(self.tau_rev, self.pt[level])
+        #     tot = tot + torch.sum(self.ct[level][sl], dim=0)
+        #     # normalization
+        #     # G2 = (x / scl) * (y / scl) / eff_len  -> eff_len * scl ^ 2
+        #     # IP = (x / scl)             / eff_len  -> eff_len * scl
+        #     # IF = (y / scl)             / eff_len  -> eff_len * scl
+        #     for _, tid, eff_length in self.tau_in_level[level]:
+        #         self.g2[tid, 0] /= (eff_length * 2**(level * 2))
+        #         self.g2[tid, 1:3] += tot
+        #         self.g2[tid, 1:3] /= eff_length * 2**level
+        #     # for tau, tid, eff_length0 in self.tau_in_level[level]:
+        #     #     eff_length = self.calc_eff_length(level, tau)
+        #     #     if eff_length0 == 0:
+        #     #         continue
 
-                self.g2_norm[tid, 0] = self.g2[tid, 0] / (eff_length * 2**(level * 2))
-                self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] + tot
-                self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] / (eff_length * 2**level)
+        #     #     self.g2_norm[tid, 0] = self.g2[tid, 0] / (eff_length * 2**(level * 2))
+        #     #     self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] + tot
+        #     #     self.g2_norm[tid, 1:3] = self.g2[tid, 1:3] / (eff_length * 2**level)
 
-        # get saxs2d
-        # self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
-        self.saxs_2d = torch.unsqueeze(tot, 0)
-        self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
-
+        # # get saxs2d
+        # # self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        # self.saxs_2d = torch.unsqueeze(tot, 0)
+        # self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
         return
 
     def process_dataset(self,
@@ -354,22 +359,44 @@ class MultitauCorrelator(object):
             for x in dl:
                 x = x.to(self.device, non_blocking=True)
                 self.process(x)
-
-        self.post_process()
+        # self.post_process()
 
     def get_results(self):
         tline = torch.arange(self.intt.shape[0], device=self.intt.device)
         intt = torch.vstack([tline, self.intt.float()])
 
+        # rescale the average and add total flux to IP and IF
+        tot = self.ct_overflow
+        g2_norm = torch.clone(self.g2)
+        for level in np.flip(self.levels):
+            sl = slice(self.tau_rev, self.pt[level])
+            tot = tot + torch.sum(self.ct[level][sl], dim=0)
+            # normalization
+            # G2 = (x / scl) * (y / scl) / eff_len  -> eff_len * scl ^ 2
+            # IP = (x / scl)             / eff_len  -> eff_len * scl
+            # IF = (y / scl)             / eff_len  -> eff_len * scl
+            # for _, tid, eff_length in self.tau_in_level[level]:
+
+            for tau, tid, eff_length0 in self.tau_in_level[level]:
+                eff_length = self.calc_eff_length(level, tau)
+                if eff_length == 0:
+                    continue
+                g2_norm[tid, 0] /= (eff_length * 2**(level * 2))
+                g2_norm[tid, 1:3] += tot
+                g2_norm[tid, 1:3] /= eff_length * 2**level
+
+        self.saxs_2d = torch.unsqueeze(tot, 0)
+        self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
+
         output = {
-            'intt': intt.float(),
+            'intt': intt.float()[:, 0:self.current_frame_used],
             'saxs2d': self.saxs_2d.float(),
             'saxs2d_par': self.saxs_2d_par.float(),
-            'G2': self.g2_norm.float(),
+            'G2': g2_norm.float(),
             'mask_crop': self.mask_crop,
-            'tau': self.tau_bin[0, :]
+            'tau': self.tau_bin[0].astype(np.float32),
+            'saxs_2d_single': self.curr_img.float()
         }
-
         return output
  
     def get_results_report(self):
@@ -433,7 +460,6 @@ def example(queue_size=512,
     etime = time.perf_counter()
     logger.info('processing frequency is %.4f' % (frame_num / (etime - stime)))
 
-    xb.post_process()
     return
 
 
