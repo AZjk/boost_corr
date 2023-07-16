@@ -60,10 +60,24 @@ class XpcsResult(object):
         except Exception:
             traceback.print_exc()
             raise IOError(f'Check metadata file {meta_fname}')
-        
+
     def save(self, result_dict, mode="alias", compression=None, **kwargs):
-        put(self.fname, result_dict, mode=mode, compression=compression,
-            **kwargs)
+        if 'G2IPIF' not in result_dict:
+            put(self.fname, result_dict, mode=mode, compression=compression,
+                **kwargs)
+        else:
+            # save G2 etc
+            G2 = result_dict.pop('G2IPIF')
+            G2_fname = os.path.splitext(self.fname)[0] + '_G2.hdf'
+            put(G2_fname, {'G2IPIF': G2}, mode="raw",
+                compression=compression, **kwargs)
+            put(self.fname, result_dict, mode=mode, compression=compression,
+                **kwargs)
+            # create a link for the main file
+            with h5py.File(self.fname, 'r+') as f:
+                relative_path = os.path.basename(G2_fname)
+                f['/exchange/G2IPIF'] = h5py.ExternalLink(relative_path, 
+                                                          "/G2IPIF")
 
 
 if __name__ == "__main__":

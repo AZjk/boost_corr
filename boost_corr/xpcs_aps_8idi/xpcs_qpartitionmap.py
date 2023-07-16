@@ -250,11 +250,8 @@ class XpcsQPartitionMap(object):
         }
         # self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
         if save_G2:
-            G2 = res["G2"].reshape(-1, 3, *self.det_size)
-            output_dir['G2'] = G2[:, 0]
-            output_dir['IP'] = G2[:, 1]
-            output_dir['IF'] = G2[:, 2]
-            print(output_dir['G2'].shape)
+            value = res["G2"].reshape(-1, 3, *self.det_size)
+            output_dir['G2IPIF'] = value
 
         for k, v in output_dir.items():
             if isinstance(v, torch.Tensor):
