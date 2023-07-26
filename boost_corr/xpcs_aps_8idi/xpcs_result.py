@@ -41,6 +41,9 @@ class XpcsResult(object):
         super().__init__()
 
         meta_fname = get_metadata(meta_dir)
+
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
         # the filename for the result file;
         if fname is None:
             fname = os.path.join(output_dir, os.path.basename(meta_fname))
