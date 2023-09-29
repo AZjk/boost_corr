@@ -2,16 +2,87 @@ import sys
 import h5py
 import math
 import os
+import shutil
 import numpy as np
 
 
-def append_qmap(meta_fname, qmap_fname, output_fname,
-                avg_frame=1, stride_frame=1, entry='/xpcs',
-                entry_out='/exchange', analysis_type='Multitau'):
+def append_qmap(meta_type, *args, **kwargs):
+    assert meta_type in ('nexus', 'legacy')
+
+    if meta_type == 'legacy':
+        append_qmap_legacy(*args, **kwargs)
+    elif meta_type == 'nexus':
+        append_qmap_nexus(*args, **kwargs)
+
+
+def append_qmap_legacy(meta_fname, qmap_fname, output_fname, **kwargs):
+    copy_metadata_legacy(meta_fname, output_fname, **kwargs)
+    copy_qmap(output_fname, qmap_fname)
+     
+
+def append_qmap_nexus(meta_fname, qmap_fname, output_fname, **kwargs):
+    shutil.copy(meta_fname, output_fname)
+    copy_qmap(output_fname, qmap_fname)
+    copy_avg_stride(output_fname, kwargs['avg_frame'], kwargs['stride_frame'])
+
+
+def copy_qmap(output_fname, qmap_fname, entry='/xpcs'):
+    qmap_file = h5py.File(qmap_fname, "r")
+    output_file = h5py.File(output_fname, "r+")
+    qmap_file.copy("/data/dphival", output_file, name=entry+"/dphilist")
+    qmap_file.copy("/data/dphispan", output_file, name=entry+"/dphispan")
+    qmap_file.copy("/data/dqval", output_file, name=entry+"/dqlist")
+    qmap_file.copy("/data/dynamicMap", output_file, name=entry+"/dqmap")
+    qmap_file.copy("/data/mask", output_file, name=entry+"/mask")
+    qmap_file.copy("/data/dqspan", output_file, name=entry+"/dqspan")
+    qmap_file.copy("/data/dnoq", output_file, name=entry+"/dnoq")
+    qmap_file.copy("/data/dnophi", output_file, name=entry+"/dnophi")
+
+    qmap_file.copy("/data/sphival", output_file, name=entry+"/sphilist")
+    qmap_file.copy("/data/sphispan", output_file, name=entry+"/sphispan")
+    qmap_file.copy("/data/sqval", output_file, name=entry+"/sqlist")
+    qmap_file.copy("/data/staticMap", output_file, name=entry+"/sqmap")
+    qmap_file.copy("/data/sqspan", output_file, name=entry+"/sqspan")
+    qmap_file.copy("/data/snoq", output_file, name=entry+"/snoq")
+    qmap_file.copy("/data/snophi", output_file, name=entry+"/snophi")
+
+    output_file[entry+"/qmap_hdf5_filename"] = qmap_fname
+
+    output_file.close()
+    qmap_file.close()
+
+
+def copy_avg_stride(output_fname, avg_frame=1, stride_frame=1):
+    # temp = output_file.create_dataset(
+    #     entry+"/stride_frames", (1, 1), dtype='uint64')
+    # temp[(0, 0)] = stride_frame
+    # temp = output_file.create_dataset(
+    #     entry+"/stride_frames_burst", (1, 1), dtype='uint64')
+    # temp[(0, 0)] = 1
+
+    # temp = output_file.create_dataset(
+    #     entry+"/avg_frames", (1, 1), dtype='uint64')
+    # temp[(0, 0)] = avg_frame
+    # temp = output_file.create_dataset(
+    #     entry+"/avg_frames_burst", (1, 1), dtype='uint64')
+    # temp[(0, 0)] = 1
+
+    with h5py.File(output_fname, 'r+') as f:
+        f['/xpcs/avg_frames'] = avg_frame
+        f['/xpcs/stride_frames'] = stride_frame
+        f['/xpcs/avg_frame_burst'] = 1 
+        f['/xpcs/stride_frame_burst'] = 1
+        f['/xpcs/analysis_type'] = 'Multitau'
+
+
+def copy_metadata_legacy(meta_fname, output_fname, avg_frame=1, stride_frame=1,
+                         entry='/xpcs', entry_out='/exchange',
+                         analysis_type='Multitau'):
+
+    copy_avg_stride(output_fname, avg_frame, stride_frame) 
 
     # Open the three .h5 files
     meta_file = h5py.File(meta_fname, "r")
-    qmap_file = h5py.File(qmap_fname, "r")
     output_file = h5py.File(output_fname, "w")
 
     # Copy /measurement from meta_file into outputfile /measurement
@@ -76,14 +147,6 @@ def append_qmap(meta_fname, qmap_fname, output_fname,
     # meta_file["/measurement/instrument/detector/burst/number_of_bursts"][()]
     # default dpl for multitau in the burst mode when applicable
 
-    qmap_file.copy("/data/dphival", output_file, name=entry+"/dphilist")
-    qmap_file.copy("/data/dphispan", output_file, name=entry+"/dphispan")
-    qmap_file.copy("/data/dqval", output_file, name=entry+"/dqlist")
-    qmap_file.copy("/data/dynamicMap", output_file, name=entry+"/dqmap")
-    qmap_file.copy("/data/mask", output_file, name=entry+"/mask")
-    qmap_file.copy("/data/dqspan", output_file, name=entry+"/dqspan")
-    qmap_file.copy("/data/dnoq", output_file, name=entry+"/dnoq")
-    qmap_file.copy("/data/dnophi", output_file, name=entry+"/dnophi")
 
     data_begin_todo = int(output_file[entry+"/data_begin_todo"][()])
     data_end_todo = int(output_file[entry+"/data_end_todo"][()])
@@ -121,7 +184,6 @@ def append_qmap(meta_fname, qmap_fname, output_fname,
                    output_file, name=entry+"/output_file_local")
 
     output_file[entry+"/output_file_remote"] = "output/results"
-    output_file[entry+"/qmap_hdf5_filename"] = qmap_fname
 
     meta_file.copy("/measurement/instrument/detector/sigma",
                    output_file, name=entry+"/sigma")
@@ -132,31 +194,11 @@ def append_qmap(meta_fname, qmap_fname, output_fname,
     meta_file.copy("/measurement/instrument/acquisition/specscan_data_number",
                    output_file, name=entry+"/specscan_data_number")
 
-    qmap_file.copy("/data/sphival", output_file, name=entry+"/sphilist")
-    qmap_file.copy("/data/sphispan", output_file, name=entry+"/sphispan")
-    qmap_file.copy("/data/sqval", output_file, name=entry+"/sqlist")
-    qmap_file.copy("/data/staticMap", output_file, name=entry+"/sqmap")
-    qmap_file.copy("/data/sqspan", output_file, name=entry+"/sqspan")
-    qmap_file.copy("/data/snoq", output_file, name=entry+"/snoq")
-    qmap_file.copy("/data/snophi", output_file, name=entry+"/snophi")
-
     temp = output_file.create_dataset(
         entry+"/static_mean_window_size", (1, 1), dtype='uint64')
     temp[(0, 0)] = static_mean_window
 
-    temp = output_file.create_dataset(
-        entry+"/stride_frames", (1, 1), dtype='uint64')
-    temp[(0, 0)] = stride_frame
-    temp = output_file.create_dataset(
-        entry+"/stride_frames_burst", (1, 1), dtype='uint64')
-    temp[(0, 0)] = 1
-
-    temp = output_file.create_dataset(
-        entry+"/avg_frames", (1, 1), dtype='uint64')
-    temp[(0, 0)] = avg_frame
-    temp = output_file.create_dataset(
-        entry+"/avg_frames_burst", (1, 1), dtype='uint64')
-    temp[(0, 0)] = 1
+   
 
     temp = output_file.create_dataset(entry+"/swbinX", (1, 1), dtype='uint64')
     temp[(0, 0)] = 1
@@ -197,7 +239,6 @@ def append_qmap(meta_fname, qmap_fname, output_fname,
     #######################
     # Close all the files
     meta_file.close()
-    qmap_file.close()
     output_file.close()
     #######################
 
