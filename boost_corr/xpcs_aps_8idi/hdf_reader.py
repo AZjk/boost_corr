@@ -14,7 +14,8 @@ if not os.path.isdir(home_dir):
 key_fname = os.path.join(home_dir, 'default.json')
 
 # if no such file; then use 8idi configure
-if not os.path.isfile(key_fname):
+# if not os.path.isfile(key_fname):
+if True:
     # TODO: force update the configure file;
     # if True:
     from .aps_8idi import key as aps_8idi_key
