@@ -4,6 +4,7 @@ import os
 from .. import MultitauCorrelator
 from .imm_handler import ImmDataset
 from .rigaku_handler import RigakuDataset
+from .rigaku_3M_handler import Rigaku3MDataset
 from .hdf_handler import HdfDataset
 from .xpcs_result import XpcsResult
 import magic
@@ -75,6 +76,10 @@ def solve_multitau(qmap=None,
     use_loader = False
     if ext == ".bin":
         dataset_method = RigakuDataset
+        use_loader = False
+        batch_size = 1024
+    elif raw.endswith('.bin.000'):
+        dataset_method = Rigaku3MDataset
         use_loader = False
         batch_size = 1024
     elif ext in [".imm", ".h5", ".hdf"]:
