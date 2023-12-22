@@ -22,7 +22,7 @@ class XpcsDataset(object):
                  begin_frame=1,
                  end_frame=-1,
                  stride_frame=1,
-                 avg_frame=3,
+                 avg_frame=1,
                  batch_size=128,
                  det_size=(512, 1024),
                  device='cuda:0',
