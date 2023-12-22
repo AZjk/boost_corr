@@ -63,14 +63,12 @@ class Rigaku3MDataset(XpcsDataset):
         return canvas
     
     def append_data(self, canvas, index, data_module):
-        shape_one = (512, 1024)
-
         row = index // 2
         col = index % 2
-        st_v = row * (shape_one[0] + self.gap[0])
-        sl_v = slice(st_v, st_v + shape_one[0])
-        st_h = col * (shape_one[1] + self.gap[1])
-        sl_h = slice(st_h, st_h + shape_one[1])
+        st_v = row * (self.det_size_one[0] + self.gap[0])
+        sl_v = slice(st_v, st_v + self.det_size[0])
+        st_h = col * (self.det_size_one[1] + self.gap[1])
+        sl_h = slice(st_h, st_h + self.det_size_one[1])
         canvas[:, sl_v, sl_h] = data_module.reshape(-1, *self.det_size_one)
 
         return canvas
