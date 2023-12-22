@@ -42,6 +42,7 @@ class Rigaku3MDataset(XpcsDataset):
         shape_one = self.container[0].det_size 
         shape = [shape_one[n] * self.layout[n] + self.gap[n] * (self.layout[n] - 1) for n in range(2)]
         self.det_size = tuple(shape)
+        self.det_size_one = shape_one
     
     def patch_data(self, scat_list):
         gap = self.gap
@@ -70,7 +71,7 @@ class Rigaku3MDataset(XpcsDataset):
         sl_v = slice(st_v, st_v + shape_one[0])
         st_h = col * (shape_one[1] + self.gap[1])
         sl_h = slice(st_h, st_h + shape_one[1])
-        canvas[:, sl_v, sl_h] = data_module
+        canvas[:, sl_v, sl_h] = data_module.reshape(-1, *self.det_size_one)
 
         return canvas
     
@@ -80,7 +81,7 @@ class Rigaku3MDataset(XpcsDataset):
         canvas = torch.zeros(size, *self.det_size, dtype=torch.uint8,
                              device=self.device)
         for index, module in enumerate(self.container):
-            temp = module.__getbatch__(idx, flag_2d=True)
+            temp = module.__getbatch__(idx)
             canvas = self.append_data(canvas, index, temp)
 
         return canvas.reshape(size, -1)
