@@ -36,7 +36,8 @@ def solve_multitau(qmap=None,
 
     logger.setLevel(log_level)
 
-    meta_dir = os.path.dirname(raw)
+    # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
+    meta_dir = os.path.dirname(os.path.realpath(raw))
 
     # log task info
     logger.info(f"meta_dir: {meta_dir}")
