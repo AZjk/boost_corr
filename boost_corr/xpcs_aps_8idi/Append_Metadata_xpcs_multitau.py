@@ -16,8 +16,9 @@ def append_qmap(meta_type, *args, **kwargs):
 
 
 def append_qmap_legacy(meta_fname, qmap_fname, output_fname, **kwargs):
-    copy_metadata_legacy(meta_fname, output_fname, **kwargs)
+    copy_metadata_legacy(meta_fname, output_fname)
     copy_qmap(output_fname, qmap_fname)
+    copy_avg_stride(output_fname, kwargs['avg_frame'], kwargs['stride_frame'])
      
 
 def append_qmap_nexus(meta_fname, qmap_fname, output_fname, **kwargs):
@@ -52,7 +53,8 @@ def copy_qmap(output_fname, qmap_fname, entry='/xpcs'):
     qmap_file.close()
 
 
-def copy_avg_stride(output_fname, avg_frame=1, stride_frame=1):
+def copy_avg_stride(output_fname, avg_frame=1, stride_frame=1,
+                    avg_frame_burst=1, stride_frame_burst=1):
     # temp = output_file.create_dataset(
     #     entry+"/stride_frames", (1, 1), dtype='uint64')
     # temp[(0, 0)] = stride_frame
@@ -70,16 +72,13 @@ def copy_avg_stride(output_fname, avg_frame=1, stride_frame=1):
     with h5py.File(output_fname, 'r+') as f:
         f['/xpcs/avg_frames'] = avg_frame
         f['/xpcs/stride_frames'] = stride_frame
-        f['/xpcs/avg_frame_burst'] = 1 
-        f['/xpcs/stride_frame_burst'] = 1
-        f['/xpcs/analysis_type'] = 'Multitau'
+        f['/xpcs/avg_frame_burst'] = avg_frame_burst
+        f['/xpcs/stride_frame_burst'] = stride_frame_burst
 
 
-def copy_metadata_legacy(meta_fname, output_fname, avg_frame=1, stride_frame=1,
+def copy_metadata_legacy(meta_fname, output_fname, 
                          entry='/xpcs', entry_out='/exchange',
                          analysis_type='Multitau'):
-
-    copy_avg_stride(output_fname, avg_frame, stride_frame) 
 
     # Open the three .h5 files
     meta_file = h5py.File(meta_fname, "r")
