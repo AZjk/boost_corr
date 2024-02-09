@@ -17,8 +17,10 @@ def compute_dtype(max_count, levels):
     # get the dtype that can hold the accumulation of photons without losing
     # precision
     dtype_list = [
-        [1 / (2**7 - 1), torch.bfloat16, 2],  # bfloat16 has  bits
-        [1 / (2**23 - 1), torch.float32, 4],  # float32 has 23 bits
+        # [1 / (2**7 - 1), torch.bfloat16, 2],  # bfloat16 has  bits
+        # [1 / (2**23 - 1), torch.float32, 4],  # float32 has 23 bits
+        [1 / (2**7 - 1), torch.float64, 8],  # bfloat16 has  bits
+        [1 / (2**23 - 1), torch.float64, 8],  # float32 has 23 bits
         [1 / (2**52 - 1), torch.float64, 8],  # float64
     ]
 
