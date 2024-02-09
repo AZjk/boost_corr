@@ -248,10 +248,20 @@ class XpcsQPartitionMap(object):
             'g2': g2,
             'g2_err': g2_err
         }
-        # self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
+
         if save_G2:
-            value = res["G2"].reshape(-1, 3, *self.det_size)
-            output_dir['G2IPIF'] = value
+            G2 = res["G2"].reshape(-1, res["G2"].shape[-1])
+            if flag_crop:
+                pixel_num = self.det_size[0] * self.det_size[1]
+                value = torch.zeros(G2.shape[0], pixel_num,
+                                    dtype=torch.float32,
+                                    device=G2.device)
+                value[:, self.info['mask_idx_1d']] = G2
+            else:
+                value = G2
+
+            # the final shape of G2IPIF is (num_tau, 3, det_row, det_col)
+            output_dir['G2IPIF'] = value.reshape(-1, 3, *self.det_size)
 
         for k, v in output_dir.items():
             if isinstance(v, torch.Tensor):
