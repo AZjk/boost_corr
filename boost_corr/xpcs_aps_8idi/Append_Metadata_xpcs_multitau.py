@@ -56,6 +56,10 @@ def copy_additional_metadata(output_fname, avg_frame=1, stride_frame=1,
         f['/xpcs/stride_frames'] = stride_frame
         f['/xpcs/avg_frame_burst'] = avg_frame_burst
         f['/xpcs/stride_frame_burst'] = stride_frame_burst
+
+        # legacy metadata file may already have analysis_type
+        if "/xpcs/analysis_type" in f:
+            del f["/xpcs/analysis_type"]
         f["/xpcs/analysis_type"] = analysis_type
 
 
