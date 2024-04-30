@@ -16,36 +16,15 @@ def append_qmap(meta_type, meta_fname, qmap_fname, output_fname,
     elif meta_type == 'nexus':
         shutil.copy(meta_fname, output_fname)
 
-    copy_qmap(output_fname, qmap_fname)
+    # copy_qmap(output_fname, qmap_fname)
+    with h5py.File(qmap_fname, 'r') as fs, h5py.File(output_fname, 'r+') as fd:
+        if '/entry/instrument' not in fd:
+            fd.create_dataset('/entry/instrument/')
+        fs.copy('/entry/instrument/mask/', fd['/entry/instrument/'])
+
     copy_additional_metadata(output_fname, avg_frame=avg_frame,
                              stride_frame=stride_frame,
                              analysis_type=analysis_type)
-
-
-def copy_qmap(output_fname, qmap_fname, entry='/xpcs'):
-    qmap_file = h5py.File(qmap_fname, "r")
-    output_file = h5py.File(output_fname, "r+")
-    qmap_file.copy("/data/dphival", output_file, name=entry+"/dphilist")
-    qmap_file.copy("/data/dphispan", output_file, name=entry+"/dphispan")
-    qmap_file.copy("/data/dqval", output_file, name=entry+"/dqlist")
-    qmap_file.copy("/data/dynamicMap", output_file, name=entry+"/dqmap")
-    qmap_file.copy("/data/mask", output_file, name=entry+"/mask")
-    qmap_file.copy("/data/dqspan", output_file, name=entry+"/dqspan")
-    qmap_file.copy("/data/dnoq", output_file, name=entry+"/dnoq")
-    qmap_file.copy("/data/dnophi", output_file, name=entry+"/dnophi")
-
-    qmap_file.copy("/data/sphival", output_file, name=entry+"/sphilist")
-    qmap_file.copy("/data/sphispan", output_file, name=entry+"/sphispan")
-    qmap_file.copy("/data/sqval", output_file, name=entry+"/sqlist")
-    qmap_file.copy("/data/staticMap", output_file, name=entry+"/sqmap")
-    qmap_file.copy("/data/sqspan", output_file, name=entry+"/sqspan")
-    qmap_file.copy("/data/snoq", output_file, name=entry+"/snoq")
-    qmap_file.copy("/data/snophi", output_file, name=entry+"/snophi")
-
-    output_file[entry+"/qmap_hdf5_filename"] = qmap_fname
-
-    output_file.close()
-    qmap_file.close()
 
 
 def copy_additional_metadata(output_fname, avg_frame=1, stride_frame=1,
@@ -74,29 +53,6 @@ def copy_metadata_legacy(meta_fname, output_fname,
     # Copy /measurement from meta_file into outputfile /measurement
     meta_file.copy('/measurement', output_file)
 
-    ############################################################
-    # flatfield file for Lambda (only detector with flatfield right now)
-    # if meta_file["/measurement/instrument/detector/manufacturer"][()] == "LAMBDA":
-    #     flatfieldfile = h5py.File(
-    #         "/home/beams/8IDIUSER/Python_HDF5_DataExchange/Flatfield_AsKa_Th5p5keV.hdf", "r")
-    #     flatfieldfile.copy("/flatField_transpose", output_file,
-    #                        name="/measurement/instrument/detector/flatfield")
-    #     flatfieldfile.close()
-    ############################################################
-
-    ############################################################
-    # this is a less elegant way to define strings, works but has some unknown
-    # issues with HDF5
-    # Filling in datasets for /xpcs in output file (alphabetical order)
-    #dt = h5py.special_dtype(vlen=unicode)
-    #temp = output_file.create_dataset(entry+"/analysis_type", (1,1),dtype=dt)
-    #temp[(0,0)] = "DYNAMIC"
-    ############################################################
-
-    # better example to write strings instead of the above (as per Nick)
-    # Version# history: Started with no field like that, then added 0.5 which
-    # was when stride and sum frames were added
-    # Increasing to 1.0 when adding Normalize frames by framesum, two time, etc
     output_file[entry+"/Version"] = "1.0"
     output_file[entry+"/analysis_type"] = analysis_type
 

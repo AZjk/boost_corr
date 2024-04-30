@@ -5,22 +5,23 @@ import torch
 import sys
 import os
 
-
 logger = logging.getLogger(__name__)
 
 
 key_map = {
-    "dqmap": "/data/dynamicMap",
-    "sqmap": "/data/staticMap",
-    "mask": "/data/mask",
-    "sphilist": "/data/sphival",
-    "dphilist": "/data/dphival"
+    "dcounts": "/entry/instrument/mask/dynamic_counts",
+    "dqlist": "/entry/instrument/mask/dynamic_q_list",
+    "dqmap": "/entry/instrument/mask/dynamic_roi_map",
+    "map_name": "/entry/instrument/mask/map_name",
+    "mask": "/entry/instrument/mask/mask",
+    "scounts": "/entry/instrument/mask/static_counts",
+    "sqlist": "/entry/instrument/mask/static_q_list",
+    "sqmap": "/entry/instrument/mask/static_roi_map",
 }
 
 
 def find_bin_count(qmap, minlength=None):
     count = np.bincount(qmap.ravel(), minlength=minlength)[1:]
-    count = count.astype(np.int32)
     nan_idx = (count == 0)
     count[nan_idx] = -1
     return count, nan_idx
@@ -64,7 +65,7 @@ class XpcsQPartitionMap(object):
         self.det_size = None
         self.qinfo = None
         self.flag_sort = flag_sort
-        self.load(flag_fix)
+        self.load()
         self.group_qmap(dq_selection)
 
     def group_qmap(self, dq_selection=None):
@@ -84,8 +85,6 @@ class XpcsQPartitionMap(object):
             "sqmap_crop": self.sqmap.reshape(-1)[mask_idx_1d],
             "scount": scount,
             "snan_idx": snan_idx,
-            # "dcount": dcount,
-            # "dnan_idx": dnan_idx,
         }
 
         info = {}
@@ -100,26 +99,14 @@ class XpcsQPartitionMap(object):
         values = {}
         with h5py.File(self.fname, "r") as f:
             for key, real_key in key_map.items():
-                values[key] = np.squeeze(f[real_key][()])
+                values[key] = f[real_key][()]
 
         self.__dict__.update(values)
-        self.mask = self.mask.astype(bool)
-        self.dqmap = self.dqmap.astype(np.int32)
-        self.sqmap = self.sqmap.astype(np.int32)
-        if flag_fix:
-            self.check_fix_qmap()
         self.det_size = self.mask.shape
-        self.dq_dim = self.dphilist.size
-        self.sq_dim = self.sphilist.size
+        self.dq_dim = self.dqlist.size
+        self.sq_dim = self.sqlist.size
         self.masked_pixels = int(np.sum(self.mask == 1))
         self.masked_ratio = self.masked_pixels / self.mask.size
-
-    def update_file(self):
-        logger.warning(f'update fixed qmap in file: [{self.fname}]')
-        # update the qmap after fixing sqmap/dqmap inconsistency
-        with h5py.File(self.fname, "a") as f:
-            del f[key_map['dqmap']]
-            f[key_map['dqmap']] = self.dqmap.astype(np.uint32)
 
     def update_rotation(self, det_size):
         if self.dqmap.shape != det_size:
