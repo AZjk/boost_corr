@@ -20,7 +20,7 @@ def build_delay_bin_list(num_frames):
         delay_in_level = np.sort(delay[levels == level])
         layer_args.append([level, delay_in_level.copy()])
         # logger.info(f'{level=}: {delay_in_level=}')
-    return layer_args
+    return layer_args, delay_absolute
 
 
 class CorrLayer(nn.Module):
@@ -172,14 +172,14 @@ class CorrLayer(nn.Module):
 class CorrModel(nn.Module):
     def __init__(self, num_frames, queue_size=1024, num_channels=512) -> None:
         super().__init__()
-        layer_args = build_delay_bin_list(num_frames)
-
+        layer_args, delays_abs = build_delay_bin_list(num_frames)
+        self.delays_abs = delays_abs
         self.arch_info = []
         layers = []
         for level, delay_in_level in layer_args:
             queue_size_t = max(16, queue_size // (2 ** level))
             delays = list(delay_in_level)
-            layer_info = f'{level=:2d}: {queue_size_t=:4d}, {delays}'
+            layer_info = f'{level=:2d}: {queue_size_t=:4d}, {delays=}'
             # logger.info(layer_info)
             layer = CorrLayer(queue_size=queue_size_t, num_channels=num_channels,
                               delay_list=delay_in_level, avg_window=2,
@@ -187,28 +187,24 @@ class CorrModel(nn.Module):
             layers.append(layer)
             self.arch_info.append(layer_info)
         self.model = torch.nn.ModuleList(layers)
-    
+
     def describe(self):
         for n, layer_info in enumerate(self.arch_info):
             dtype = self.model[n].queue.dtype
             device = self.model[n].queue.device
-            logger.info(f'{layer_info}, {dtype=}, {device=}')
+            logger.info(f'{layer_info}, {dtype}, {device}')
     
     def reset(self):
         for layer in self.model:
             layer.reset()
     
-
-    
     def get_results(self):
-        delays = []
         g2 = []
         ip = []
         for layer in self.model:
             g2_t, ip_t = layer.get_result()
             g2.append(g2_t)
             ip.append(ip_t)
-            delays.append(layer.delay_list_absolute)
 
         delays = np.hstack(delays)
         g2 = np.vstack(g2).astype(np.float32)
