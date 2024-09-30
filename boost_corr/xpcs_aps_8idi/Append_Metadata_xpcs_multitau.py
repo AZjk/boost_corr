@@ -20,7 +20,7 @@ def append_qmap(meta_type, meta_fname, qmap_fname, output_fname,
     with h5py.File(qmap_fname, 'r') as fs, h5py.File(output_fname, 'r+') as fd:
         if '/entry/instrument' not in fd:
             fd.create_dataset('/entry/instrument/')
-        fs.copy('/entry/instrument/mask/', fd['/entry/instrument/'])
+        fs.copy('/entry/instrument/masks/', fd['/entry/instrument/'])
 
     copy_additional_metadata(output_fname, avg_frame=avg_frame,
                              stride_frame=stride_frame,

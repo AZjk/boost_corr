@@ -9,14 +9,15 @@ logger = logging.getLogger(__name__)
 
 
 key_map = {
-    "dcounts": "/entry/instrument/mask/dynamic_counts",
-    "dqlist": "/entry/instrument/mask/dynamic_q_list",
-    "dqmap": "/entry/instrument/mask/dynamic_roi_map",
-    "map_name": "/entry/instrument/mask/map_name",
-    "mask": "/entry/instrument/mask/mask",
-    "scounts": "/entry/instrument/mask/static_counts",
-    "sqlist": "/entry/instrument/mask/static_q_list",
-    "sqmap": "/entry/instrument/mask/static_roi_map",
+    "dcounts": "/entry/instrument/masks/dynamic_q_counts",
+    "dqlist": "/entry/instrument/masks/dynamic_q_list",
+    "dqmap": "/entry/instrument/masks/dynamic_roi_map",
+    "map_name": "/entry/instrument/masks/map_name",
+    "map_unit": "/entry/instrument/masks/map_unit",
+    "mask": "/entry/instrument/masks/mask",
+    "scounts": "/entry/instrument/masks/static_q_counts",
+    "sqlist": "/entry/instrument/masks/static_q_list",
+    "sqmap": "/entry/instrument/masks/static_roi_map",
 }
 
 
@@ -99,6 +100,7 @@ class XpcsQPartitionMap(object):
         values = {}
         with h5py.File(self.fname, "r") as f:
             for key, real_key in key_map.items():
+                print(key, real_key)
                 values[key] = f[real_key][()]
 
         self.__dict__.update(values)
