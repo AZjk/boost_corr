@@ -5,7 +5,7 @@ import argparse
 import logging
 from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
 from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
-from boost_corr.xpcs_aps_8idi.gpu_record import get_gpu, release_gpu
+from boost_corr.gpu_scheduler import  GPUScheduler
 
 
 logging.basicConfig(
@@ -94,7 +94,8 @@ parser.add_argument("-i",
                     type=int,
                     default=default_config['gpu_id'],
                     help="""[default: -1] choose which GPU to use. if the input
-                            is -1, then CPU is used""")
+                            is -1, then CPU is used. if -2 is used, it will
+                            automatically schedule an avaiable GPU.""")
 
 parser.add_argument("-begin_frame",
                     type=int,
@@ -197,12 +198,6 @@ if args.config is not None:
 
 kwargs['dq_selection'] = convert_to_list(kwargs['dq_selection'])
 
-# automatically obtain gpu id
-gpu_id_auto = None 
-if kwargs['gpu_id'] == -2:
-    gpu_id_auto = get_gpu()
-    kwargs['gpu_id'] = gpu_id_auto
-
 
 def main():
     flag = 0
@@ -223,14 +218,15 @@ def main():
 
         ans = None
         try:
-            ans = method(**kwargs)
+            if kwargs['gpu_id'] == -2:
+                with GPUScheduler(max_try=7200, sleep_duration=1) as scheduler:
+                    kwargs['gpu_id'] = scheduler.gpu_id
+                    ans = method(**kwargs)
+            else:
+                ans = method(**kwargs)
         except Exception:
             flag = 1
             traceback.print_exc()
-
-        # relase gpu_id_auto
-        if gpu_id_auto is not None:
-            release_gpu(gpu_id_auto)
 
     # send the result's fname to std-out
     print(ans)
