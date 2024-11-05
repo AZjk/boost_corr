@@ -251,6 +251,12 @@ class MultitauCorrelator(object):
         if end - beg <= 0:
             return None
 
+        if level == 0:
+            # sl = slice(self.current_frame - end + beg, self.current_frame)
+            intt = torch.mean(self.ct[level][beg:end].float(), dim=1)
+            self.intt.append(intt)
+            self.ct[level][beg:end] /= intt.reshape(end - beg, 1)
+
         for tau, tid, _ in self.tau_in_level[level]:
             sl1 = slice(beg - tau, end - tau)
             sl2 = slice(beg, end)
@@ -273,10 +279,6 @@ class MultitauCorrelator(object):
 
         if level == self.par_level:
             self.saxs_2d_par.append(self.ct[level][beg:end].clone().detach())
-
-        if level == 0:
-            # sl = slice(self.current_frame - end + beg, self.current_frame)
-            self.intt.append(torch.mean(self.ct[level][beg:end].float(), dim=1))
 
         # the number of elements should be an even number for all; but the
         # last call can be an odd number; advance the event; the left element
