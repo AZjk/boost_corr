@@ -60,8 +60,10 @@ class GPUScheduler:
             # Check if this job is at the front of the queue
             queue_files = sorted(os.listdir(self.QUEUE_DIR))
             if os.path.basename(self.queue_file) != queue_files[0]:
-                logger.info(f"Not at the front of the queue. Waiting... (Attempt {try_count}/{self.max_try})")
-                time.sleep(self.sleep_duration)
+                index = queue_files.index(os.path.basename(self.queue_file))
+                sleep_time = min(max(self.sleep_duration, 1 * index), 100)
+                logger.info(f"Current position in the queue: {index + 1}/{len(queue_files)}, sleeping for {sleep_time:.1f} seconds...")
+                time.sleep(sleep_time)
                 continue
 
             # Try to acquire a GPU starting from the random GPU
