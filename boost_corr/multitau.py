@@ -102,7 +102,7 @@ class MultitauCorrelator(object):
             # print(self.dtype_list[n])
 
         # account for the overflow photons
-        self.ct_overflow = 0
+        self.ct_overflow = torch.zeros(size=(self.pixel_num,), device=self.device)
 
         # G2, IP and IF
         self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
@@ -120,7 +120,7 @@ class MultitauCorrelator(object):
 
         # self.intt = torch.zeros(size=(frame_num, 2), dtype=torch.float32)
         self.intt = []
-        self.saxs_2d = None
+        self.saxs_2d = torch.zeros_like(self.ct_overflow)
         self.saxs_2d_par = []
 
         self.levels = levels
@@ -255,6 +255,7 @@ class MultitauCorrelator(object):
             # sl = slice(self.current_frame - end + beg, self.current_frame)
             intt = torch.mean(self.ct[level][beg:end].float(), dim=1)
             self.intt.append(intt)
+            self.saxs_2d += torch.sum(self.ct[level][beg:end].float(), dim=0)
             self.ct[level][beg:end] /= intt.reshape(end - beg, 1)
 
         for tau, tid, _ in self.tau_in_level[level]:
@@ -313,7 +314,8 @@ class MultitauCorrelator(object):
                 self.g2[tid, 1:3] /= eff_length * 2**level
 
         # get saxs2d
-        self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        # self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        self.saxs_2d /= self.frame_num
         if len(self.saxs_2d_par) > 0:
             self.saxs_2d_par = torch.vstack(self.saxs_2d_par) / self.frame_num
         else:
