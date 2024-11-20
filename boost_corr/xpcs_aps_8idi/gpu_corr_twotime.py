@@ -1,14 +1,12 @@
-import logging
 import os
 from .imm_handler import ImmDataset
 from .rigaku_handler import RigakuDataset
 from .hdf_handler import HdfDataset
 from .xpcs_result import XpcsResult
 import magic
-from torch.utils.data import DataLoader
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .. import TwotimeCorrelator
-# from torch.profiler import profile, record_function, ProfilerActivity
+import logging
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +25,7 @@ def solve_twotime(qmap=None,
                   dq_selection=None,
                   smooth='sqmap',
                   overwrite=False,
+                  num_workers=16,
                   **kwargs):
 
     log_level = logging.ERROR
@@ -112,19 +111,15 @@ def solve_twotime(qmap=None,
 
     logger.info("correlation solver created.")
 
-    # specify batch_size=None so the data is a 2d array instead of 3d
-    # the batch is done in xpcs dataset, not in torch's DataLoader
-    dl = DataLoader(dset, batch_size=None)
-
-    for x in dl:
-        # print(x.dtype)
-        tt.process(x)
+    
+    tt.process_dataset(dset, verbose=verbose, use_loader=use_loader,
+                       num_workers=num_workers)
 
     logger.info(f"smooth method used: {smooth}")
     tt.post_processing(smooth_method=smooth)
 
     for info in tt.get_twotime_result():
-        result_file.save(info, mode='raw', compression='gzip')
+        result_file.save(info, mode='raw', compression='lzf')
 
     saxs = tt.get_saxs()
     norm_data = qpm.normalize_saxs(saxs)
