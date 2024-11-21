@@ -1,117 +1,75 @@
+from typing import Optional, Union, Any
+from pathlib import Path
 import time
 import logging
 import os
 from .. import MultitauCorrelator
-from .imm_handler import ImmDataset
-from .rigaku_handler import RigakuDataset
-from .rigaku_3M_handler import Rigaku3MDataset
-from .hdf_handler import HdfDataset
 from .xpcs_result import XpcsResult
-import magic
 from .xpcs_qpartitionmap import XpcsQPartitionMap
+from .dataset import create_dataset
 
 
 logger = logging.getLogger(__name__)
 
 
-def solve_multitau(qmap=None,
-                   raw=None,
-                   output="cluster_results",
-                   batch_size=8,
-                   gpu_id=0,
-                   verbose=False,
-                   masked_ratio_threshold=0.85,
-                   use_loader=True,
-                   begin_frame=3,
-                   end_frame=-1,
-                   avg_frame=7,
-                   stride_frame=5,
-                   overwrite=False,
-                   save_G2=False,
-                   **kwargs):
+def solve_multitau(
+    qmap: Optional[Union[str, Path]] = None,
+    raw: Optional[Union[str, Path]] = None,
+    output: str = "cluster_results",
+    batch_size: int = 8,
+    gpu_id: int = 0,
+    verbose: bool = False,
+    masked_ratio_threshold: float = 0.85,
+    num_loaders: int = 16,
+    begin_frame: int = 0,
+    end_frame: int = -1,
+    avg_frame: int = 1,
+    stride_frame: int = 1,
+    overwrite: bool = False,
+    save_G2: bool = False,
+    **kwargs: Any
+) -> Union[str, None]:
 
     log_level = logging.ERROR
     if verbose:
         log_level = logging.INFO
-
     logger.setLevel(log_level)
 
+    # create qpartitionmap
+    qpm = XpcsQPartitionMap(qmap, device=device,
+                            masked_ratio_threshold=masked_ratio_threshold)
+
+    if verbose:
+        logger.info(f"rawfname: {raw}")
+        logger.info(f"qmap: {qmap}")
+        logger.info(f"meta_dir: {meta_dir}")
+        logger.info(f"output: {output}")
+        logger.info(f"gpu_id: {gpu_id}")
+        qpm.describe()
+
+    # create dataset
+    dset, use_loader = create_dataset(raw, device,
+                                      mask_crop=qpm.mask_crop,
+                                      avg_frame=avg_frame,
+                                      begin_frame=begin_frame,
+                                      end_frame=end_frame,
+                                      stride_frame=stride_frame)
+
+    # in some detectors/configurations, the qmap is rotated
+    qpm.update_rotation(dset.det_size)
+
+    # determine the metadata path
     # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
     meta_dir = os.path.dirname(os.path.realpath(raw))
 
-    # log task info
-    logger.info(f"meta_dir: {meta_dir}")
-    logger.info(f"qmap: {qmap}")
-    logger.info(f"output: {output}")
-    logger.info(f"gpu_id: {gpu_id}")
-
     if not os.path.isdir(output):
-        # os.mkdir(output)
         os.makedirs(output)
 
     if gpu_id >= 0:
         device = f"cuda:{gpu_id}"
     else:
         device = "cpu"
-
     logger.info(f"device: {device}")
-
-    qpm = XpcsQPartitionMap(qmap, device=device)
-    logger.info("QPartitionMap instance created.")
-    logger.info(f"masked area: {qpm.masked_pixels}")
-    logger.info(f"masked area ratio/threshold: {qpm.masked_ratio:0.3f}/{masked_ratio_threshold:0.3f}")
-    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
-                             stride_frame=stride_frame, overwrite=overwrite)
-
-    # determine whether to use mask or not based on the mask"s ratio
-    if qpm.masked_ratio > masked_ratio_threshold:
-        mask_crop = None
-    else:
-        mask_crop = qpm.get_mask_crop()
-        logger.info(f"masked_ratio is too low. will crop the raw input.")
-
-    ext = os.path.splitext(raw)[-1]
-
-    # use_loader is set for HDF files, it can use multiple processes to read
-    # large HDF file;
-    use_loader = False
-    if ext == ".bin":
-        dataset_method = RigakuDataset
-        use_loader = False
-        batch_size = 1024
-    elif raw.endswith('.bin.000'):
-        dataset_method = Rigaku3MDataset
-        use_loader = False
-        batch_size = 1024
-    elif ext in [".imm", ".h5", ".hdf"]:
-        real_raw = os.path.realpath(raw)
-        ftype = magic.from_file(real_raw)
-        logger.info(f'rawdata filetype: {ftype}')
-        if ftype == 'empty':
-            raise Exception('The raw file is damaged.')
-        elif ftype == "Hierarchical Data Format (version 5) data":
-            dataset_method = HdfDataset
-            use_loader = True
-            batch_size = 8
-        else:
-            dataset_method = ImmDataset
-            use_loader = False
-            batch_size = 8
-
-    logger.info(f"batch_size: {batch_size}")
-
-    dset = dataset_method(raw,
-                          batch_size=batch_size,
-                          device=device,
-                          mask_crop=mask_crop,
-                          avg_frame=avg_frame,
-                          begin_frame=begin_frame,
-                          end_frame=end_frame,
-                          stride_frame=stride_frame)
-
-    flag_rot = qpm.update_rotation(dset.det_size)
-    if flag_rot:
-        dset.update_mask_crop(qpm.get_mask_crop())
 
     xb = MultitauCorrelator(
         dset.det_size,
@@ -119,16 +77,16 @@ def solve_multitau(qmap=None,
         queue_size=batch_size,  # batch_size is the minimal value
         auto_queue=True,
         device=device,
-        mask_crop=mask_crop)
+        mask_crop=qpm.mask_crop)
 
     if verbose:
         dset.describe()
         xb.describe()
-
-    logger.info("correlation solver created.")
+        logger.info("correlation solver created.")
 
     t_start = time.perf_counter()
-    xb.process_dataset(dset, verbose=verbose, use_loader=use_loader)
+    xb.process_dataset(dset, verbose=verbose, use_loader=use_loader,
+                       num_workers=num_loaders)
     t_end = time.perf_counter()
     t_diff = t_end - t_start
     frequency = dset.frame_num / t_diff
@@ -138,9 +96,12 @@ def solve_multitau(qmap=None,
     t_start = time.perf_counter()
     result = xb.get_results()
     result = qpm.normalize_data(result, save_G2=save_G2)
-    result_file.save(result)
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
-    logger.info(f"analysis results exported to {output}")
+
+    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
+                             stride_frame=stride_frame, overwrite=overwrite)
+    result_file.save(result)
+    logger.info(f"analysis results saved as {result_file.fname}")
 
     return result_file.fname
