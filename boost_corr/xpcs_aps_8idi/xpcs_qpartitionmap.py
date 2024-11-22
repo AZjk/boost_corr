@@ -56,9 +56,7 @@ class XpcsQPartitionMap(object):
         self.fname = qmap_fname
         self.device = device
         self.masked_ratio = 1.0
-        self.masked_ratio_threshold = masked_ratio_threshold
         self.masked_pixels = 0
-        self.mask_crop = None
         self.dq_dim = 0
         self.sq_dim = 0
         self.dqmap = None
@@ -69,6 +67,7 @@ class XpcsQPartitionMap(object):
         self.flag_sort = flag_sort
         self.load(flag_fix)
         self.group_qmap(dq_selection)
+        self.mask_crop = self.update_mask_crop(masked_ratio_threshold)
 
     def group_qmap(self, dq_selection=None):
         scount, snan_idx = find_bin_count(self.sqmap, self.sq_dim + 1)
@@ -98,9 +97,14 @@ class XpcsQPartitionMap(object):
         self.qinfo = qinfo
     
     def describe(self):
-        logger.info(f"masked area pixel: {self.masked_pixels}")
-        logger.info(f"""masked area ratio/threshold:
-                     {self.masked_ratio:0.3f}/{self.masked_ratio_threshold:0.3f}""") 
+        logger.info(f'qmap file: {self.fname}')
+        logger.info(f'flag_sort: {self.flag_sort}')
+        logger.info(
+            f"masked area pixels/ratio: "
+            f"{self.masked_pixels}/"
+            f"{self.masked_ratio * 100:.4f}%")
+        # omit dq = 0 which is not used
+        logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}") 
 
     def load(self, flag_fix=False):
         values = {}
@@ -119,9 +123,7 @@ class XpcsQPartitionMap(object):
         self.sq_dim = self.sphilist.size
         self.masked_pixels = int(np.sum(self.mask == 1))
         self.masked_ratio = self.masked_pixels / self.mask.size
-        if self.masked_ratio < self.masked_ratio_threshold:
-            logger.info(f"masked_ratio is too low. Apply crop-mask on the raw input.")
-            self.mask_crop = self.get_mask_crop()
+
 
     def update_file(self):
         logger.warning(f'update fixed qmap in file: [{self.fname}]')
@@ -145,8 +147,13 @@ class XpcsQPartitionMap(object):
             return True
         return False
 
-    def get_mask_crop(self):
-        return self.info['mask_idx_1d']
+    def update_mask_crop(self, masked_ratio_threshold):
+        if self.masked_ratio < masked_ratio_threshold:
+            logger.info(f"masked_ratio is too low. Apply crop-mask on the raw input.")
+            mask_crop = self.info['mask_idx_1d']
+        else:
+            mask_crop = None
+        return mask_crop
 
     def check_fix_qmap(self):
         flag = True
@@ -164,8 +171,6 @@ class XpcsQPartitionMap(object):
                 else:
                     idx_1 = np.logical_and(self.dqmap == dq[1], sq_roi)
                     self.dqmap[idx_1] = dq[0]
-        if flag:
-            logger.info('sqmap/dqmap are consistent.')
         return flag
 
     def select_sort(self, dq_selection=None):

@@ -8,9 +8,6 @@ from .hdf_handler import HdfDataset
 import magic
 
 
-logger = logging.getLogger(__name__)
-
-
 def create_dataset(raw_fname, device, mask_crop, avg_frame, begin_frame,
                    end_frame, stride_frame):
     if not os.path.isfile(raw_fname):
@@ -53,5 +50,4 @@ def create_dataset(raw_fname, device, mask_crop, avg_frame, begin_frame,
                           end_frame=end_frame,
                           stride_frame=stride_frame)
 
-    logger.info(f"batch_size: {batch_size}")
     return dset, use_loader

@@ -1,9 +1,8 @@
 import numpy as np
 import logging
 import torch
-from torch.utils.data import Dataset
 from .xpcs_dataset import XpcsDataset
-from ..help_functions import convert_sparse
+from .help_functions import convert_sparse
 
 
 logger = logging.getLogger(__name__)

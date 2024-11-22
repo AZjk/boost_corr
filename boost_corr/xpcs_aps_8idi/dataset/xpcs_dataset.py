@@ -119,11 +119,10 @@ class XpcsDataset(object):
             valid_size = self.mask_crop.shape[0]
         else:
             valid_size = self.pixel_num
-        logger.info(f'dtype is: {self.dtype}')
+        logger.info(f'dtype: {self.dtype}')
         logger.info(f'valid_size: {valid_size}')
-        logger.info('sparsity: %.4f' % self.get_sparsity())
-        logger.info('raw dataset file size: {:,} MB'.format(
-            round(self.raw_size, 2)))
+        logger.info(f'sparsity: {self.get_sparsity():.4f}')
+        logger.info(f'raw dataset file size: {self.raw_size:.2f} MB')
 
     def __len__(self):
         return self.batch_num

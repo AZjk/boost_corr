@@ -1,8 +1,6 @@
 import os
-from .imm_handler import ImmDataset
-from .rigaku_handler import RigakuDataset
-from .hdf_handler import HdfDataset
 from .xpcs_result import XpcsResult
+from .dataset import create_dataset
 import magic
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .. import TwotimeCorrelator

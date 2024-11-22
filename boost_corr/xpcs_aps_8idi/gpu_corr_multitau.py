@@ -30,22 +30,18 @@ def solve_multitau(
     **kwargs: Any
 ) -> Union[str, None]:
 
-    log_level = logging.ERROR
-    if verbose:
-        log_level = logging.INFO
+    log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
+
+    device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
 
     # create qpartitionmap
     qpm = XpcsQPartitionMap(qmap, device=device,
                             masked_ratio_threshold=masked_ratio_threshold)
 
     if verbose:
-        logger.info(f"rawfname: {raw}")
-        logger.info(f"qmap: {qmap}")
-        logger.info(f"meta_dir: {meta_dir}")
-        logger.info(f"output: {output}")
-        logger.info(f"gpu_id: {gpu_id}")
         qpm.describe()
+        logger.info(f"device: {device}")
 
     # create dataset
     dset, use_loader = create_dataset(raw, device,
@@ -65,11 +61,7 @@ def solve_multitau(
     if not os.path.isdir(output):
         os.makedirs(output)
 
-    if gpu_id >= 0:
-        device = f"cuda:{gpu_id}"
-    else:
-        device = "cpu"
-    logger.info(f"device: {device}")
+
 
     xb = MultitauCorrelator(
         dset.det_size,
