@@ -50,12 +50,15 @@ def average(img, qmap, size=None, count=None):
 
 class XpcsQPartitionMap(object):
     def __init__(self, qmap_fname, flag_fix=True, flag_sort=False,
-                 dq_selection=None, device='cpu') -> None:
+                 dq_selection=None, masked_ratio_threshold=0.85,
+                 device='cpu') -> None:
         super().__init__()
         self.fname = qmap_fname
         self.device = device
         self.masked_ratio = 1.0
+        self.masked_ratio_threshold = masked_ratio_threshold
         self.masked_pixels = 0
+        self.mask_crop = None
         self.dq_dim = 0
         self.sq_dim = 0
         self.dqmap = None
@@ -84,8 +87,6 @@ class XpcsQPartitionMap(object):
             "sqmap_crop": self.sqmap.reshape(-1)[mask_idx_1d],
             "scount": scount,
             "snan_idx": snan_idx,
-            # "dcount": dcount,
-            # "dnan_idx": dnan_idx,
         }
 
         info = {}
@@ -95,6 +96,11 @@ class XpcsQPartitionMap(object):
         self.info_np = info_np
         self.info = info
         self.qinfo = qinfo
+    
+    def describe(self):
+        logger.info(f"masked area pixel: {self.masked_pixels}")
+        logger.info(f"""masked area ratio/threshold:
+                     {self.masked_ratio:0.3f}/{self.masked_ratio_threshold:0.3f}""") 
 
     def load(self, flag_fix=False):
         values = {}
@@ -113,6 +119,9 @@ class XpcsQPartitionMap(object):
         self.sq_dim = self.sphilist.size
         self.masked_pixels = int(np.sum(self.mask == 1))
         self.masked_ratio = self.masked_pixels / self.mask.size
+        if self.masked_ratio < self.masked_ratio_threshold:
+            logger.info(f"masked_ratio is too low. Apply crop-mask on the raw input.")
+            self.mask_crop = self.get_mask_crop()
 
     def update_file(self):
         logger.warning(f'update fixed qmap in file: [{self.fname}]')
