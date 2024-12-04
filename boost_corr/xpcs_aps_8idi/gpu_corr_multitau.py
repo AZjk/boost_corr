@@ -56,12 +56,10 @@ def solve_multitau(
 
     # determine the metadata path
     # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
-    meta_dir = os.path.dirname(os.path.realpath(raw))
+    meta_dir = os.path.dirname(os.path.abspath(raw))
 
     if not os.path.isdir(output):
         os.makedirs(output)
-
-
 
     xb = MultitauCorrelator(
         dset.det_size,
