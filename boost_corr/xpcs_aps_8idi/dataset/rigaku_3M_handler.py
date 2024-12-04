@@ -16,7 +16,7 @@ class Rigaku3MDataset(XpcsDataset):
     filename: string
         path to Rigaku3M binary.000 file
     """
-    def __init__(self, *args, dtype=np.uint8, gap=(71, 50), layout=(3, 2),
+    def __init__(self, *args, dtype=np.uint8, gap=(70, 52), layout=(3, 2),
                  **kwargs):
         super(Rigaku3MDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Rigaku 64bit Binary"
