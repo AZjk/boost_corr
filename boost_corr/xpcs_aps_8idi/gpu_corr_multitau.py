@@ -91,7 +91,7 @@ def solve_multitau(
 
     result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
                              stride_frame=stride_frame, overwrite=overwrite)
-    result_file.save(result)
+    result_file.safe_save(result)
     logger.info(f"analysis results saved as {result_file.fname}")
 
     return result_file.fname
