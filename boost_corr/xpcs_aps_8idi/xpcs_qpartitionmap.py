@@ -1,10 +1,10 @@
-import h5py
 import logging
+import os
+import sys
+
+import h5py
 import numpy as np
 import torch
-import sys
-import os
-
 
 logger = logging.getLogger(__name__)
 
@@ -301,7 +301,7 @@ class XpcsQPartitionMap(object):
 
     def compute_g2(self, G2, flag_crop):
         if not flag_crop:
-            G2 = G2[..., self.get_mask_crop()]
+            G2 = G2[..., self.info['mask_idx_1d']]
         flag_crop = True
 
         IP_IF = G2[:, 1] * G2[:, 2]
