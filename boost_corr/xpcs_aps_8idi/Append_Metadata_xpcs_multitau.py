@@ -1,12 +1,16 @@
-import sys
-import h5py
 import math
 import os
 import shutil
+import sys
+
+import h5py
 import numpy as np
 
 
-def append_qmap(meta_type, meta_fname, qmap_fname, output_fname,
+def append_qmap(output_fname,
+                meta_fname=None,
+                qmap_fname=None,
+                meta_type='nexus',
                 avg_frame=1, stride_frame=1,
                 analysis_type="Multitau"):
     assert meta_type in ('nexus', 'legacy')

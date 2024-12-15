@@ -50,7 +50,7 @@ class MultitauCorrelator(object):
                  queue_level: int = 4,
                  auto_queue=True,
                  mask_crop=None,
-                 max_memory=32.0,
+                 max_memory=36.0,
                  max_count=7) -> None:
 
         self.det_size = det_size
@@ -137,6 +137,7 @@ class MultitauCorrelator(object):
         dlist_uniq.sort()
         for x in dlist_uniq:
             logger.info(f'stage @ {dlist.count(x):02d}: {x}')
+        logger.info(f'max_memory is {self.max_memory}GB')
 
     def reset(self):
         for n in range(self.levels_num):

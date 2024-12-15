@@ -24,7 +24,7 @@ def create_dataset(raw_fname, device, mask_crop, avg_frame, begin_frame,
     elif raw_fname.endswith('.bin.000'):
         dataset_method = Rigaku3MDataset
         use_loader = False
-        batch_size = 1024
+        batch_size = 512 
     elif ext in [".imm", ".h5", ".hdf"]:
         real_raw = os.path.realpath(raw_fname)
         ftype = magic.from_file(real_raw)
