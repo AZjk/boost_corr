@@ -19,7 +19,7 @@ def solve_multitau(
     batch_size: int = 8,
     gpu_id: int = 0,
     verbose: bool = False,
-    masked_ratio_threshold: float = 0.85,
+    masked_ratio_threshold: float = 0.01,
     num_loaders: int = 16,
     begin_frame: int = 0,
     end_frame: int = -1,
@@ -58,9 +58,6 @@ def solve_multitau(
     # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
     meta_dir = os.path.dirname(os.path.abspath(raw))
 
-    if not os.path.isdir(output):
-        os.makedirs(output)
-
     xb = MultitauCorrelator(
         dset.det_size,
         frame_num=dset.frame_num,
@@ -89,9 +86,10 @@ def solve_multitau(
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
-    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
-                             stride_frame=stride_frame, overwrite=overwrite)
-    result_file.safe_save(result)
-    logger.info(f"multitau analysis finished")
+    with XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
+                    stride_frame=stride_frame,
+                    overwrite=overwrite) as result_file:
+        result_file.save(result)
 
+    logger.info(f"multitau analysis finished")
     return result_file.fname

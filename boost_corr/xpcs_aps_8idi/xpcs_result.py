@@ -158,7 +158,7 @@ def create_unique_file(
         counter += 1
 
 
-class XpcsResult(object):
+class XpcsResult:
     def __init__(self,
                  meta_dir: str,
                  qmap_fname: str,
@@ -167,71 +167,90 @@ class XpcsResult(object):
                  avg_frame=1,
                  stride_frame=1,
                  analysis_type='Multitau') -> None:
-        super().__init__()
-        meta_fname, meta_ftype = get_metadata(meta_dir)
+        self.meta_dir = meta_dir
+        self.qmap_fname = qmap_fname
+        self.output_dir = output_dir
+        self.overwrite = overwrite
+        self.avg_frame = avg_frame
+        self.stride_frame = stride_frame
+        self.analysis_type = analysis_type
+        self.fname = None
+        self.G2_fname = None
+        self.fname_temp = None
+        self.G2_fname_temp = None
+        self.success = False
+
+    def __enter__(self):
+        """
+        Perform setup when entering the context manager.
+        """
+        meta_fname, meta_ftype = get_metadata(self.meta_dir)
         logger.info(f'metadata filename/type is {meta_fname} | {meta_ftype}')
-        self.fname = create_unique_file(output_dir, meta_fname,
-                                        analysis_type=analysis_type,
-                                        overwrite=overwrite)
+        self.fname = create_unique_file(self.output_dir, meta_fname,
+                                        analysis_type=self.analysis_type,
+                                        overwrite=self.overwrite)
         self.G2_fname = os.path.splitext(self.fname)[0] + '_G2.hdf'
         self.fname_temp = self.fname + '.temp'
         self.G2_fname_temp = self.G2_fname + '.temp'
-        self.result_kwargs = {
-            'meta_fname': meta_fname,
-            'qmap_fname': qmap_fname,
-            'meta_type': meta_ftype,
-            'avg_frame': avg_frame,
-            'stride_frame': stride_frame,
-            'analysis_type': analysis_type
-        }
 
-    def save_as_temp(self, result_dict, mode="alias", compression=None,
-                     **kwargs):
-        append_qmap(self.fname_temp, **self.result_kwargs)
+        # Append qmap, metadata, and processing arguments
+        result_kwargs = {
+            'meta_fname': meta_fname,
+            'qmap_fname': self.qmap_fname,
+            'meta_type': meta_ftype,
+            'avg_frame': self.avg_frame,
+            'stride_frame': self.stride_frame,
+            'analysis_type': self.analysis_type
+        }
+        if not os.path.isdir(self.output_dir):
+            os.makedirs(self.output_dir)
+        append_qmap(self.fname_temp, **result_kwargs)
+        return self
+
+    def save(self, result_dict, mode="alias", compression=None, **kwargs):
+        """
+        Save the provided result_dict to the temporary files.
+        """
         G2 = result_dict.pop('G2IPIF', None)
-        put(self.fname_temp, result_dict, mode=mode, compression=compression,
-            **kwargs)
+        put(self.fname_temp, result_dict, mode=mode,
+            compression=compression, **kwargs)
+
         if G2 is not None:
             put(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw",
                 compression=compression, **kwargs)
-            # create a link for the main file
+            # Create a link for the main file
             with h5py.File(self.fname_temp, 'r+') as f:
                 relative_path = os.path.basename(self.G2_fname)
                 f['/exchange/G2IPIF'] = h5py.ExternalLink(relative_path, 
                                                           "/G2IPIF")
 
-    def safe_save(self, *args, **kwargs):
-        flag = False
+    def __exit__(self, exc_type, exc_value, traceback_obj):
+        """
+        Exit the context manager, finalizing the temporary files.
+        """
         try:
-            self.save_as_temp(*args, **kwargs)
             if os.path.isfile(self.fname_temp):
                 shutil.move(self.fname_temp, self.fname)
             if os.path.isfile(self.G2_fname_temp):
                 shutil.move(self.G2_fname_temp, self.G2_fname)
-            flag = True
-        except FileNotFoundError as fnf_error:
-            logger.error(f"File not found: {fnf_error}")
-        except PermissionError as perm_error:
-            logger.error(f"Permission denied: {perm_error}")
-        except OSError as os_error:
-            logger.error(f"OS error occurred: {os_error}")
-        except Exception as e:
-            logger.error(f"Unexpected error occurred: {e}")
+            self.success = True
+        except Exception:
             traceback.print_exc()
+            logger.info('failed to rename the result files')
         finally:
             # Clean up temporary files if they still exist
-            for temp_file in [self.G2_fname_temp, self.fname_temp]:
+            for temp_file in [self.fname_temp, self.G2_fname_temp]:
                 if os.path.exists(temp_file):
-                    try:
-                        os.remove(temp_file)
-                        logger.info(f"Cleaned up temporary file: {temp_file}")
-                    except Exception as cleanup_error:
-                        logger.warning(f"Failed to clean up temporary file {temp_file}: {cleanup_error}")
-        if flag:
+                    os.remove(temp_file)
+                    logger.info(f"Cleaned up temporary file: {temp_file}")
+
+        if self.success:
             logger.info(f"Succeeded in saving result file: {self.fname}")
         else:
             logger.error(f"Failed in saving result file: {self.fname}")
-        return flag
+            raise
+        return self.success
+
 
 if __name__ == "__main__":
     pass
