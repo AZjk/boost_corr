@@ -1,128 +1,98 @@
-import os
-from .xpcs_result import XpcsResult
-from .dataset import create_dataset
-import magic
-from .xpcs_qpartitionmap import XpcsQPartitionMap
-from .. import TwotimeCorrelator
 import logging
+import os
 
+import time
+from pathlib import Path
+from typing import Any, Optional, Union
+
+from .. import TwotimeCorrelator
+from .dataset import create_dataset
+from .xpcs_qpartitionmap import XpcsQPartitionMap
+from .xpcs_result import XpcsResult
 
 logger = logging.getLogger(__name__)
 
 
-def solve_twotime(qmap=None,
-                  raw=None,
-                  output="cluster_results",
-                  batch_size=1,
-                  gpu_id=0,
-                  verbose=False,
-                  begin_frame=1,
-                  end_frame=-1,
-                  avg_frame=1,
-                  stride_frame=1,
-                  dq_selection=None,
-                  smooth='sqmap',
-                  overwrite=False,
-                  num_workers=16,
-                  **kwargs):
+def solve_twotime(
+    qmap: Optional[Union[str, Path]] = None,
+    raw: Optional[Union[str, Path]] = None,
+    output: str = "cluster_results",
+    batch_size: int = 8,
+    gpu_id: int = 0,
+    verbose: bool = False,
+    masked_ratio_threshold: float = 0.85,
+    num_loaders: int = 16,
+    begin_frame: int = 0,
+    end_frame: int = -1,
+    avg_frame: int = 1,
+    stride_frame: int = 1,
+    overwrite: bool = False,
+    # save_G2: bool = False,
+    dq_selection: Optional[Union[str, Path]] = None,
+    smooth: str = 'sqmap',
+    **kwargs):
 
-    log_level = logging.ERROR
+    log_level = logging.INFO if verbose else logging.ERROR
+    logger.setLevel(log_level)
+    device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
+
+    # create qpartitionmap
+    qpm = XpcsQPartitionMap(qmap, device=device, flag_sort=True,
+                            masked_ratio_threshold=masked_ratio_threshold,
+                            dq_selection=dq_selection)
     if verbose:
-        log_level = logging.INFO
+        qpm.describe()
+        logger.info(f"device: {device}")
 
     logger.setLevel(log_level)
 
-    meta_dir = os.path.dirname(raw)
+    # create dataset
+    dset, use_loader = create_dataset(raw, device,
+                                      mask_crop=qpm.mask_crop,
+                                      avg_frame=avg_frame,
+                                      begin_frame=begin_frame,
+                                      end_frame=end_frame,
+                                      stride_frame=stride_frame)
 
-    # log task info
-    logger.info(f"meta_dir: {meta_dir}")
-    logger.info(f"qmap: {qmap}")
-    logger.info(f"output: {output}")
-    logger.info(f"gpu_id: {gpu_id}")
+    # in some detectors/configurations, the qmap is rotated
+    qpm.update_rotation(dset.det_size)
+    # determine the metadata path
+    # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
+    meta_dir = os.path.dirname(os.path.abspath(raw))
 
-    if not os.path.isdir(output):
-        # os.mkdir(output)
-        os.makedirs(output)
-
-    if gpu_id >= 0:
-        device = f"cuda:{gpu_id}"
-    else:
-        device = "cpu"
-
-    logger.info(f"device: {device}")
-
-    qpm = XpcsQPartitionMap(qmap, flag_fix=True, flag_sort=True,
-                            device=device, dq_selection=dq_selection)
-
-    logger.info("QPartitionMap instance created.")
-    logger.info(f"masked area: {qpm.masked_pixels}")
-    logger.info(f"masked area ratio: {qpm.masked_ratio:0.3f}")
-    result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
-                             stride_frame=stride_frame, overwrite=overwrite,
-                             analysis_type='Twotime')
-
-    # determine whether to use mask or not based on the mask"s ratio
-    # if qpm.masked_ratio > masked_ratio_threshold:
-    #     mask_crop = None
-    if True:
-        mask_crop = qpm.get_mask_crop()
-        logger.info(f"masked_ratio is too low. will crop the raw input.")
-
-    ext = os.path.splitext(raw)[-1]
-
-    # use_loader is set for HDF files, it can use multiple processes to read
-    # large HDF file;
-    use_loader = False
-    if ext == ".bin":
-        dataset_method = RigakuDataset
-        use_loader = False
-        batch_size = 1024
-    elif ext in [".imm", ".h5", ".hdf"]:
-        ftype = magic.from_file(raw)
-        if ftype == "Hierarchical Data Format (version 5) data":
-            dataset_method = HdfDataset
-            use_loader = True
-            batch_size = 1
-        else:
-            dataset_method = ImmDataset
-            use_loader = False
-            batch_size = 256
-    logger.info(f"batch_size: {batch_size}")
-    dset = dataset_method(raw, batch_size=batch_size, device=device,
-                          mask_crop=mask_crop, avg_frame=avg_frame,
-                          begin_frame=begin_frame, end_frame=end_frame,
-                          stride_frame=stride_frame)
-    if verbose:
-        dset.describe()
-
-    flag_rot = qpm.update_rotation(dset.det_size)
-    if flag_rot:
-        dset.update_mask_crop(qpm.get_mask_crop())
-
-    tt = TwotimeCorrelator(qpm.qinfo,
+    twotime_correlator = TwotimeCorrelator(
+                           qpm.qinfo,
                            frame_num=dset.frame_num,
                            det_size=dset.det_size,
                            method='normal',
-                           mask_crop=mask_crop,
+                           mask_crop=qpm.mask_crop,
                            window=1024,
                            device=device)
 
     logger.info("correlation solver created.")
 
-    
-    tt.process_dataset(dset, verbose=verbose, use_loader=use_loader,
-                       num_workers=num_workers)
+    t_start = time.perf_counter()
+    twotime_correlator.process_dataset(
+        dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders)
+    twotime_correlator.post_processing(smooth_method=smooth)
+    t_end = time.perf_counter()
+    t_diff = t_end - t_start
+    frequency = dset.frame_num / t_diff
+    logger.info(f"correlation finished in {t_diff:.2f}s." +
+                f" frequency = {frequency:.2f} Hz")
 
-    logger.info(f"smooth method used: {smooth}")
-    tt.post_processing(smooth_method=smooth)
-
-    for info in tt.get_twotime_result():
-        result_file.save(info, mode='raw', compression='lzf')
-
-    saxs = tt.get_saxs()
+    t_start = time.perf_counter()
+    saxs = twotime_correlator.get_saxs()
     norm_data = qpm.normalize_saxs(saxs)
-    result_file.save(norm_data)
+    t_end = time.perf_counter()
+    logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
-    logger.info(f"analysis results exported to {output}")
-
+    # saving results to file
+    with XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
+                             stride_frame=stride_frame, overwrite=overwrite,
+                             analysis_type='Twotime') as result_file:
+        result_file.save(norm_data)
+        for info in twotime_correlator.get_twotime_result():
+            result_file.save(info, mode='raw', compression='lzf')
+    logger.info(f"twotime analysis finished")
     return result_file.fname
