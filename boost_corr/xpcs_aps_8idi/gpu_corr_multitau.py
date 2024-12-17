@@ -1,13 +1,13 @@
-from typing import Optional, Union, Any
-from pathlib import Path
-import time
 import logging
 import os
-from .. import MultitauCorrelator
-from .xpcs_result import XpcsResult
-from .xpcs_qpartitionmap import XpcsQPartitionMap
-from .dataset import create_dataset
+import time
+from pathlib import Path
+from typing import Any, Optional, Union
 
+from .. import MultitauCorrelator
+from .dataset import create_dataset
+from .xpcs_qpartitionmap import XpcsQPartitionMap
+from .xpcs_result import XpcsResult
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +92,6 @@ def solve_multitau(
     result_file = XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
                              stride_frame=stride_frame, overwrite=overwrite)
     result_file.safe_save(result)
-    logger.info(f"analysis results saved as {result_file.fname}")
+    logger.info(f"multitau analysis finished")
 
     return result_file.fname
