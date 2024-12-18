@@ -205,6 +205,7 @@ class XpcsResult:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         append_qmap(self.fname_temp, **result_kwargs)
+        os.chmod(self.fname_temp, 0o644)
         return self
 
     def save(self, result_dict, mode="alias", compression=None, **kwargs):
