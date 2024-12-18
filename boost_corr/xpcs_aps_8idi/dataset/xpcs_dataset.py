@@ -19,7 +19,7 @@ class XpcsDataset(object):
     """
     def __init__(self,
                  fname,
-                 begin_frame=1,
+                 begin_frame=0,
                  end_frame=-1,
                  stride_frame=1,
                  avg_frame=1,
@@ -59,10 +59,10 @@ class XpcsDataset(object):
         if self.end_frame <= 0:
             self.end_frame = frame_num
 
-        tot = self.end_frame - (self.begin_frame - 1)
+        tot = self.end_frame - self.begin_frame
         eff_len = self.avg_frame * self.stride
         tot = tot // eff_len * eff_len
-        end_frame = self.begin_frame - 1 + tot
+        end_frame = self.begin_frame + tot
         if self.end_frame != end_frame:
             logger.info('end_frame is rounded to the nearest number')
             self.end_frame = end_frame
@@ -87,7 +87,7 @@ class XpcsDataset(object):
     def get_raw_index(self, idx):
         # get the raw index list
         eff_len = self.stride * self.avg_frame * self.batch_size
-        beg = self.begin_frame - 1 + eff_len * idx
+        beg = self.begin_frame + eff_len * idx
         end = min(self.end_frame, beg + eff_len)
         size = (end - beg) // self.stride
         return beg, end, size
