@@ -33,7 +33,10 @@ class Rigaku3MDataset(XpcsDataset):
         flist = [self.fname[:-3] + f'00{n}' for n in index_list]
         for f in flist:
             assert os.path.isfile(f)
-        return [RigakuDataset(f, dtype=dtype, **kwargs) for f in flist]
+        
+        kwargs.pop('mask_crop', None)
+        return [RigakuDataset(f, dtype=dtype, mask_crop=None, **kwargs) 
+                for f in flist]
     
     def update_info(self):
         frame_num = [x.frame_num for x in self.container]
@@ -56,15 +59,18 @@ class Rigaku3MDataset(XpcsDataset):
         return canvas
     
     def __getbatch__(self, idx):
-        # frame begin and end
-        beg, end, size = self.get_raw_index(idx)
+        _, _, size = self.get_raw_index(idx)
         canvas = torch.zeros(size, *self.det_size, dtype=torch.uint8,
                              device=self.device)
         for index, module in enumerate(self.container):
             temp = module.__getbatch__(idx)
             canvas = self.append_data(canvas, index, temp)
+        
+        canvas = canvas.reshape(size, -1)
+        if self.mask_crop is not None:
+            canvas = canvas[:, self.mask_crop]
 
-        return canvas.reshape(size, -1)
+        return canvas
 
 
 def test():
