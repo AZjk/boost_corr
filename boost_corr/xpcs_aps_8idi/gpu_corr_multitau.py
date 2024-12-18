@@ -19,7 +19,7 @@ def solve_multitau(
     batch_size: int = 8,
     gpu_id: int = 0,
     verbose: bool = False,
-    masked_ratio_threshold: float = 0.01,
+    masked_ratio_threshold: float = 0.8,
     num_loaders: int = 16,
     begin_frame: int = 0,
     end_frame: int = -1,
