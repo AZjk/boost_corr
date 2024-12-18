@@ -67,6 +67,9 @@ class RigakuDataset(XpcsDataset):
             for n, idx in enumerate(np.arange(beg, end, self.stride)):
                 sl = self.mem_addr[idx]
                 x[n, self.ifc[0][sl].long()] = self.ifc[2][sl]
+        
+        if self.mask_crop is not None:
+            x = x[:, self.mask_crop]
         return x
 
 
