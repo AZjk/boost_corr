@@ -38,7 +38,7 @@ default_config = {
     "output": "cluster_results",
     "smooth": "sqmap",
     "gpu_id": -1,
-    "begin_frame": 1,
+    "begin_frame": 0,
     "end_frame": -1,
     "stride_frame": 1,
     "avg_frame": 1,
@@ -100,18 +100,19 @@ parser.add_argument("-i",
 parser.add_argument("-begin_frame",
                     type=int,
                     default=default_config['begin_frame'],
-                    help="""[default: 1] begin_frame specifies which frame to
+                    help="""[default: 0] begin_frame specifies which frame to
                             begin with for the correlation. This is useful to
-                            get rid of the bad frames in the beginning.""")
+                            get rid of the bad frames in the beginning. The 
+                            index is 0-based.""")
 
 parser.add_argument("-end_frame",
                     type=int,
                     default=default_config['end_frame'],
-                    help="""[default: -1] end_frame specifies the last frame
-                            used for the correlation. This is useful to
-                            get rid of the bad frames in the end. If -1 is
-                            used, end_frame will be set to the number of
-                            frames, i.e. the last frame""")
+                    help="""[default: -1] end_frame specifies the index of last
+                            frame used (exclusive) for the correlation. This is
+                            useful to get rid of the bad frames in the end.
+                            If -1 is used, all frames after 'begin_frame' 
+                            will be used. The index is 0-based.""")
 
 parser.add_argument("-stride_frame",
                     type=int,
