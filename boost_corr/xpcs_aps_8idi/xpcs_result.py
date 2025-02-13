@@ -72,8 +72,7 @@ def create_unique_file(
     
     # Ensure the filename has the .hdf extension
     name, ext = os.path.splitext(base_fname)
-    if ext.lower() != '.hdf':
-        base_fname = name + '.hdf'
+    base_fname = name.rstrip('_metadata') + "_results.hdf"
 
     # Add analysis type to the filename if specified
     if analysis_type == 'Twotime':
