@@ -15,12 +15,12 @@ class RigakuDataset(XpcsDataset):
     filename: string
         path to .imm file
     """
-    def __init__(self, *args, dtype=np.uint8, **kwargs):
+    def __init__(self, *args, dtype=np.uint8, total_frames=None, **kwargs):
         super(RigakuDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Rigaku 64bit Binary"
         self.is_sparse = True
         self.dtype = np.uint8
-        self.ifc, self.mem_addr = self.read_data()
+        self.ifc, self.mem_addr = self.read_data(total_frames)
         self.ifc = self.to_device()
 
     def to_device(self):
@@ -29,19 +29,22 @@ class RigakuDataset(XpcsDataset):
         count = torch.tensor(self.ifc[2].astype(np.uint8), device=self.device)
         return (index, frame, count)
 
-    def read_data(self):
+    def read_data(self, total_frames=None):
         with open(self.fname, 'r') as f:
             a = np.fromfile(f, dtype=np.uint64)
             d = convert_sparse(a)
             index, frame, count = d[0], d[1], d[2]
-            frame_num = frame[-1] + 1
+            if total_frames is None:
+                total_frames = frame[-1] + 1
+            else:
+                total_frames = max(total_frames, frame[-1] + 1)
 
         # fix Rigaku3m module index offset
         if np.min(index) >= 1024 * 1024:
             index -= 1024 * 1024
 
         # update frame_num and batch_num
-        self.update_batch_info(frame_num)
+        self.update_batch_info(total_frames)
 
         all_index = np.arange(0, self.frame_num_raw + 2)
         all_index[-1] = self.frame_num_raw
