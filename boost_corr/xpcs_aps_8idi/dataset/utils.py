@@ -1,11 +1,9 @@
 import os
-import logging
 import magic
 from .imm_handler import ImmDataset
 from .rigaku_handler import RigakuDataset
 from .rigaku_3M_handler import Rigaku3MDataset
 from .hdf_handler import HdfDataset
-import magic
 
 
 def create_dataset(raw_fname, device, mask_crop, avg_frame, begin_frame,
@@ -24,7 +22,7 @@ def create_dataset(raw_fname, device, mask_crop, avg_frame, begin_frame,
     elif raw_fname.endswith('.bin.000'):
         dataset_method = Rigaku3MDataset
         use_loader = False
-        batch_size = 512 
+        batch_size = 256
     elif ext in [".imm", ".h5", ".hdf"]:
         real_raw = os.path.realpath(raw_fname)
         ftype = magic.from_file(real_raw)
