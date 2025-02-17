@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 key_map = {
-    "dqmap": "/data/dynamicMap",
-    "sqmap": "/data/staticMap",
-    "mask": "/data/mask",
-    "sphilist": "/data/sphival",
-    "dphilist": "/data/dphival"
+    "dqmap": "/qmap/dqmap",
+    "sqmap": "/qmap/sqmap",
+    "mask": "/qmap/mask",
+    "sphilist": "/qmap/sphilist",
+    "dphilist": "/qmap/dphilist",
 }
 
 
