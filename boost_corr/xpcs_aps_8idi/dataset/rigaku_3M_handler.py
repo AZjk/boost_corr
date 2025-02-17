@@ -4,6 +4,7 @@ from .rigaku_handler import RigakuDataset
 import os
 import logging
 import torch
+from .help_functions import get_number_of_frames_from_binfile
 
 
 logger = logging.getLogger(__name__)
@@ -33,14 +34,20 @@ class Rigaku3MDataset(XpcsDataset):
         flist = [self.fname[:-3] + f'00{n}' for n in index_list]
         for f in flist:
             assert os.path.isfile(f)
+        # determine the total number of frames
+        total_frames = [get_number_of_frames_from_binfile(f) for f in flist]
+        for n, f in enumerate(flist):
+            logger.info(f'{f}: {total_frames[n]}')
+        total_frames = max(total_frames)
         
         kwargs.pop('mask_crop', None)
-        return [RigakuDataset(f, dtype=dtype, mask_crop=None, **kwargs) 
+        return [RigakuDataset(f, dtype=dtype, mask_crop=None,
+                              total_frames=total_frames, **kwargs) 
                 for f in flist]
     
     def update_info(self):
         frame_num = [x.frame_num for x in self.container]
-        assert len(list(set(frame_num))) == 1, 'check frame numbers'
+        assert len(list(set(frame_num))) == 1, 'frame number mismatch in the 6 modules'
         self.update_batch_info(frame_num[0])
         shape_one = self.container[0].det_size 
         shape = [shape_one[n] * self.layout[n] + self.gap[n] * (self.layout[n] - 1) for n in range(2)]
