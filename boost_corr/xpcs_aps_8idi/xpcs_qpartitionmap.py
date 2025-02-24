@@ -49,7 +49,7 @@ def average(img, qmap, size=None, count=None):
 
 
 class XpcsQPartitionMap(object):
-    def __init__(self, qmap_fname, flag_fix=True, flag_sort=False,
+    def __init__(self, qmap_fname, flag_fix=False, flag_sort=False,
                  dq_selection=None, masked_ratio_threshold=0.85,
                  device='cpu') -> None:
         super().__init__()
@@ -248,16 +248,16 @@ class XpcsQPartitionMap(object):
 
     def normalize_data(self, res, save_G2=False):
         flag_crop = res['mask_crop'] is not None
-        saxs1d = self.normalize_sqmap(res["saxs2d"], flag_crop)
+        saxs1d = self.normalize_sqmap(res["saxs_2d"], flag_crop)
         # make saxs2d has ndim of 2 instead of 3.
-        saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)[0]
-        saxs1d_par = self.normalize_sqmap(res["saxs2d_par"], flag_crop)
+        saxs2d = self.recover_dimension(res['saxs_2d'], flag_crop)[0]
+        saxs1d_par = self.normalize_sqmap(res["saxs_2d_segments"], flag_crop)
         g2, g2_err = self.compute_g2(res["G2"], flag_crop)
         output_dir = {
             'saxs_2d': saxs2d,
             'saxs_1d': saxs1d,
-            'Iqp': saxs1d_par,
-            'Int_t': res['intt'],
+            'saxs_1d_segments': saxs1d_par,
+            'intensity_vs_time': res['intensity_vs_time'],
             'delay_list': res['tau'],
             'g2': g2,
             'g2_err': g2_err

@@ -359,9 +359,9 @@ class MultitauCorrelator(object):
         intt = torch.vstack([tline, intt])
 
         output_dir = {
-            'intt': intt.float(),
-            'saxs2d': self.saxs_2d.float(),
-            'saxs2d_par': self.saxs_2d_par.float(),
+            'intensity_vs_time': intt.float(),
+            'saxs_2d': self.saxs_2d.float(),
+            'saxs_2d_segments': self.saxs_2d_par.float(),
             'G2': self.g2.float(),
             'mask_crop': self.mask_crop,
             'tau': self.tau_bin[0, :]
