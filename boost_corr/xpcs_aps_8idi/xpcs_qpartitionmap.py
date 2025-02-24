@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 key_map = {
-    "dqmap": "/qmap/dqmap",
-    "sqmap": "/qmap/sqmap",
+    "dqmap": "/qmap/dynamic_roi_map",
+    "sqmap": "/qmap/static_roi_map",
     "mask": "/qmap/mask",
-    "sphilist": "/qmap/sphilist",
-    "dphilist": "/qmap/dphilist",
+    "sphilist": "/qmap/static_v_list_dim1",
+    "dphilist": "/qmap/dynamic_v_list_dim1",
 }
 
 
@@ -258,7 +258,7 @@ class XpcsQPartitionMap(object):
             'saxs_1d': saxs1d,
             'Iqp': saxs1d_par,
             'Int_t': res['intt'],
-            'tau': res['tau'],
+            'delay_list': res['tau'],
             'g2': g2,
             'g2_err': g2_err
         }
