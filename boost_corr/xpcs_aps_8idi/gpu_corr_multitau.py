@@ -12,7 +12,13 @@ from .xpcs_result import XpcsResult
 logger = logging.getLogger(__name__)
 
 
-def solve_multitau(
+def solve_multitau(*args: Any, **kwargs: Any) -> Union[str, None]:
+    kwargs_record = kwargs.copy() 
+    kwargs_record["analysis_type"] = 'multitau'
+    return solve_multitau_base(*args, analysis_kwargs=kwargs_record, **kwargs)
+
+
+def solve_multitau_base(
     qmap: Optional[Union[str, Path]] = None,
     raw: Optional[Union[str, Path]] = None,
     output: str = "cluster_results",
@@ -27,7 +33,8 @@ def solve_multitau(
     stride_frame: int = 1,
     overwrite: bool = False,
     save_G2: bool = False,
-    **kwargs: Any
+    analysis_kwargs: Optional[dict] = None,
+    **kwargs: Any,
 ) -> Union[str, None]:
 
     log_level = logging.INFO if verbose else logging.ERROR
@@ -86,9 +93,8 @@ def solve_multitau(
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
-    with XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
-                    stride_frame=stride_frame,
-                    overwrite=overwrite) as result_file:
+    with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
+                    multitau_config=analysis_kwargs) as result_file:
         result_file.save(result)
 
     logger.info(f"multitau analysis finished")

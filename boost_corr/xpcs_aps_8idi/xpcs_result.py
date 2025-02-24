@@ -3,12 +3,10 @@ import logging
 import os
 import shutil
 import traceback
-from typing import Optional
-
 import h5py
 
-from .Append_Metadata_xpcs_multitau import append_qmap
-from .hdf_reader import put
+from .append_metadata_qmap import append_metadata_qmap
+from .hdf_reader import put_results_in_hdf5
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +35,6 @@ def get_metadata(meta_dir: str):
 def create_unique_file(
     output_dir: str,
     meta_fname: str,
-    analysis_type: Optional[str] = None,
     overwrite: bool = False
 ) -> str:
     """
@@ -74,10 +71,6 @@ def create_unique_file(
     name, ext = os.path.splitext(base_fname)
     base_fname = name.rstrip('_metadata') + "_results.hdf"
 
-    # Add analysis type to the filename if specified
-    if analysis_type == 'Twotime':
-        base_fname = base_fname.replace('.hdf', '_Twotime.hdf')
-
     # Create the full path
     fname = os.path.join(output_dir, base_fname)
 
@@ -96,26 +89,23 @@ def create_unique_file(
 
 
 class XpcsResult:
-    def __init__(self,
-                 meta_dir: str,
-                 qmap_fname: str,
-                 output_dir: str,
+    def __init__(self, meta_dir: str, qmap_fname: str, output_dir: str,
                  overwrite=False,
-                 avg_frame=1,
-                 stride_frame=1,
-                 analysis_type='Multitau') -> None:
+                 multitau_config=None,
+                 twotime_config=None) -> None:
         self.meta_dir = meta_dir
         self.qmap_fname = qmap_fname
         self.output_dir = output_dir
         self.overwrite = overwrite
-        self.avg_frame = avg_frame
-        self.stride_frame = stride_frame
-        self.analysis_type = analysis_type
         self.fname = None
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
         self.success = False
+        self.analysis_config = {
+            'multitau_config': multitau_config or {},
+            'twotime_config': twotime_config or {}
+        }
 
     def __enter__(self):
         """
@@ -124,38 +114,28 @@ class XpcsResult:
         meta_fname, meta_ftype = get_metadata(self.meta_dir)
         logger.info(f'metadata filename/type is {meta_fname} | {meta_ftype}')
         self.fname = create_unique_file(self.output_dir, meta_fname,
-                                        analysis_type=self.analysis_type,
                                         overwrite=self.overwrite)
         self.G2_fname = os.path.splitext(self.fname)[0] + '_G2.hdf'
         self.fname_temp = self.fname + '.temp'
         self.G2_fname_temp = self.G2_fname + '.temp'
 
-        # Append qmap, metadata, and processing arguments
-        result_kwargs = {
-            'meta_fname': meta_fname,
-            'qmap_fname': self.qmap_fname,
-            'meta_type': meta_ftype,
-            'avg_frame': self.avg_frame,
-            'stride_frame': self.stride_frame,
-            'analysis_type': self.analysis_type
-        }
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-        append_qmap(self.fname_temp, **result_kwargs)
+        append_metadata_qmap(self.fname_temp, meta_fname, self.qmap_fname)
         os.chmod(self.fname_temp, 0o644)
         return self
 
-    def save(self, result_dict, mode="alias", compression=None, **kwargs):
+    def save(self, result_dict, mode="alias"):
         """
         Save the provided result_dict to the temporary files.
         """
         G2 = result_dict.pop('G2IPIF', None)
-        put(self.fname_temp, result_dict, mode=mode,
-            compression=compression, **kwargs)
+        # append analysis config to the results
+        result_dict.update(self.analysis_config)
+        put_results_in_hdf5(self.fname_temp, result_dict, mode=mode)
 
         if G2 is not None:
-            put(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw",
-                compression=compression, **kwargs)
+            put_results_in_hdf5(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw")
             # Create a link for the main file
             with h5py.File(self.fname_temp, 'r+') as f:
                 relative_path = os.path.basename(self.G2_fname)
@@ -174,9 +154,10 @@ class XpcsResult:
             self.success = True
         except Exception:
             traceback.print_exc()
-            logger.info('failed to rename the result files')
+            logger.error('failed to rename the result files')
         finally:
-            # Clean up temporary files if they still exist
+            # Clean up temporary files if they still exist; regardless of
+            # success or failure
             for temp_file in [self.fname_temp, self.G2_fname_temp]:
                 if os.path.exists(temp_file):
                     os.remove(temp_file)
