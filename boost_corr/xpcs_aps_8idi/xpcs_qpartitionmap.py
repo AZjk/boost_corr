@@ -292,7 +292,7 @@ class XpcsQPartitionMap(object):
         output_dir = {
             'saxs_2d': saxs2d,
             'saxs_1d': saxs1d,
-            'Iqp': saxs1d_par,
+            'saxs_1d_segments': saxs1d_par,
         }
         for k, v in output_dir.items():
             if isinstance(v, torch.Tensor):
