@@ -210,26 +210,25 @@ class TwotimeCorrelator():
         # smooth data
         self.compute_smooth_data(smooth_method)
 
-    def get_twotime_result(self, **kwargs):
+    def get_twotime_result(self, skip_mean=False, **kwargs):
         for c2 in self.calc_normal_twotime(**kwargs):
-            yield {f'/exchange/C2T_all/g2_{self.c2_idx:05d}': c2}
+            yield {f'correlation_map/c2_{self.c2_idx:05d}': c2}
             self.c2_idx += 1
 
         # get the average and g2full/partials
         self.g2full = torch.stack(self.g2full).swapaxes(0, 1)
         self.g2partial = torch.stack(self.g2partial).permute(2, 1, 0)
         results = {
-            '/exchange/frameSum': self.frame_sum,
-            '/exchange/g2full': self.g2full,
-            '/exchange/g2partials': self.g2partial,
-            '/exchange/pixelSum': self.pixel_sum,
-            '/xpcs/qphi_bin_to_process': self.dq_idx
+            'intensity_vs_time': self.frame_sum,
+            'c2_g2': self.g2full,
+            'c2_g2_segments': self.g2partial,
+            'saxs_2d': self.pixel_sum,
+            'processed_bins': self.dq_idx
         }
 
         for k, v in results.items():
             if isinstance(v, torch.Tensor):
                 results[k] = v.cpu().numpy()
-
         yield results
 
     def get_saxs(self):
