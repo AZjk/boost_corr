@@ -13,7 +13,13 @@ from .xpcs_result import XpcsResult
 logger = logging.getLogger(__name__)
 
 
-def solve_twotime(
+def solve_twotime(*args: Any, **kwargs: Any) -> Union[str, None]:
+    kwargs_record = kwargs.copy() 
+    kwargs_record["analysis_type"] = 'twotime'
+    return solve_twotime_base(*args, analysis_kwargs=kwargs_record, **kwargs)
+
+
+def solve_twotime_base(
     qmap: Optional[Union[str, Path]] = None,
     raw: Optional[Union[str, Path]] = None,
     output: str = "cluster_results",
@@ -30,6 +36,7 @@ def solve_twotime(
     # save_G2: bool = False,
     dq_selection: Optional[Union[str, Path]] = None,
     smooth: str = 'sqmap',
+    analysis_kwargs: Optional[dict] = None,
     **kwargs):
 
     log_level = logging.INFO if verbose else logging.ERROR
@@ -88,11 +95,10 @@ def solve_twotime(
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
     # saving results to file
-    with XpcsResult(meta_dir, qmap, output, avg_frame=avg_frame,
-                             stride_frame=stride_frame, overwrite=overwrite,
-                             analysis_type='Twotime') as result_file:
+    with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
+                    twotime_config=analysis_kwargs) as result_file:
         result_file.save(norm_data)
         for info in twotime_correlator.get_twotime_result():
-            result_file.save(info, mode='raw', compression='lzf')
+            result_file.save_incremental_results(info)
     logger.info(f"twotime analysis finished")
     return result_file.fname
