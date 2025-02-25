@@ -101,7 +101,7 @@ class XpcsResult:
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
-        self.success = False
+        self.success = True 
         self.analysis_config = {
             'multitau_config': multitau_config or {},
             'twotime_config': twotime_config or {}
@@ -124,50 +124,70 @@ class XpcsResult:
         append_metadata_qmap(self.fname_temp, meta_fname, self.qmap_fname)
         os.chmod(self.fname_temp, 0o644)
         return self
-
-    def save(self, result_dict, mode="alias"):
+    
+    def save_incremental_results(self, result_dict):
         """
         Save the provided result_dict to the temporary files.
         """
-        G2 = result_dict.pop('G2IPIF', None)
-        # append analysis config to the results
-        result_dict.update(self.analysis_config)
-        put_results_in_hdf5(self.fname_temp, result_dict, mode=mode)
+        try:
+            put_results_in_hdf5(self.fname_temp, result_dict)
+        except Exception:
+            traceback.print_exc()
+            self.success = False
+            raise
+        else:
+            self.success = True and self.success
 
-        if G2 is not None:
-            put_results_in_hdf5(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw")
-            # Create a link for the main file
-            with h5py.File(self.fname_temp, 'r+') as f:
-                relative_path = os.path.basename(self.G2_fname)
-                f['/exchange/G2IPIF'] = h5py.ExternalLink(relative_path, 
-                                                          "/G2IPIF")
+    def save(self, result_dict):
+        """
+        Save the provided result_dict to the temporary files.
+        """
+        try:
+            G2 = result_dict.pop('G2IPIF', None)
+            # append analysis config to the results
+            result_dict.update(self.analysis_config)
+            put_results_in_hdf5(self.fname_temp, result_dict)
+
+            if G2 is not None:
+                put_results_in_hdf5(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw")
+                # Create a link for the main file
+                with h5py.File(self.fname_temp, 'r+') as f:
+                    relative_path = os.path.basename(self.G2_fname)
+                    f['/exchange/G2IPIF'] = h5py.ExternalLink(relative_path, 
+                                                              "/G2IPIF")
+        except Exception:
+            traceback.print_exc()
+            self.success = False
+            raise
+        else:
+            self.success = True and self.success
 
     def __exit__(self, exc_type, exc_value, traceback_obj):
         """
         Exit the context manager, finalizing the temporary files.
         """
-        try:
-            if os.path.isfile(self.fname_temp):
-                shutil.move(self.fname_temp, self.fname)
-            if os.path.isfile(self.G2_fname_temp):
-                shutil.move(self.G2_fname_temp, self.G2_fname)
-            self.success = True
-        except Exception:
-            traceback.print_exc()
-            logger.error('failed to rename the result files')
-        finally:
-            # Clean up temporary files if they still exist; regardless of
-            # success or failure
-            for temp_file in [self.fname_temp, self.G2_fname_temp]:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-                    logger.info(f"Cleaned up temporary file: {temp_file}")
+        if self.success:
+            try:
+                if os.path.isfile(self.fname_temp):
+                    shutil.move(self.fname_temp, self.fname)
+                if os.path.isfile(self.G2_fname_temp):
+                    shutil.move(self.G2_fname_temp, self.G2_fname)
+            except Exception:
+                traceback.print_exc()
+                logger.error('failed to rename the result files')
+                self.success = False
+                raise
+
+        # try to clean up regardless of success
+        for temp_file in [self.fname_temp, self.G2_fname_temp]:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+                logger.info(f"Cleaned up temporary file: {temp_file}")
 
         if self.success:
             logger.info(f"Succeeded in saving result file: {self.fname}")
         else:
             logger.error(f"Failed in saving result file: {self.fname}")
-            raise
         return self.success
 
 

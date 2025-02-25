@@ -208,7 +208,6 @@ kwargs['dq_selection'] = convert_to_list(kwargs['dq_selection'])
 
 def main():
     flag = 0
-
     if kwargs['dry_run']:
         ans = 'dry_run_only'
         print(json.dumps(kwargs, indent=4))
@@ -237,6 +236,7 @@ def main():
         except Exception:
             flag = 1
             traceback.print_exc()
+            raise
 
     # send the result's fname to std-out
     print(ans)
