@@ -11,9 +11,10 @@ key = {
   "saxs_1d_segments":     "/xpcs/temporal_mean/scattering_1d_segments",
   "intensity_vs_time":   "/xpcs/spatial_mean/intensity_vs_time",
 
-  "c2_half":  "/xpcs/twotime/c2_half",
+  "c2_prefix":  "/xpcs/twotime",
   "c2_g2":    "/xpcs/twotime/normalized_g2",
   "c2_g2_segments": "/xpcs/twotime/normalized_g2_segments",
   "c2_delay": "/xpcs/twotime/delay_list",
   "twotime_config": "/xpcs/twotime/config",
+  "processed_bins": "/xpcs/twotime/processed_bins",
 }
