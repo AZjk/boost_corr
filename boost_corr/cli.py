@@ -220,6 +220,9 @@ def main():
         elif atype == 'Twotime':
             from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
             method = solve_twotime
+        elif atype == 'Both':
+            from boost_corr.xpcs_aps_8idi.gpu_corr import solve_corr
+            method = solve_corr
         else:
             flag = 1
             raise ValueError(f'Analysis type [{atype}] not supported.')
