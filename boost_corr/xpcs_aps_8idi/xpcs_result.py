@@ -89,7 +89,7 @@ def create_unique_file(
 
 
 class XpcsResult:
-    def __init__(self, meta_dir: str, qmap_fname: str, output_dir: str,
+    def __init__(self, meta_dir=None, qmap_fname=None, output_dir=None,
                  overwrite=False,
                  multitau_config=None,
                  twotime_config=None) -> None:
@@ -123,13 +123,17 @@ class XpcsResult:
             os.makedirs(self.output_dir)
         append_metadata_qmap(self.fname_temp, meta_fname, self.qmap_fname)
         os.chmod(self.fname_temp, 0o644)
+        self.append(self.analysis_config)
         return self
     
-    def save_incremental_results(self, result_dict):
+    def append(self, result_dict):
         """
         Save the provided result_dict to the temporary files.
         """
         try:
+            if 'G2' in result_dict:
+                self.append_and_link_G2(result_dict['G2'])
+                del result_dict['G2']
             put_results_in_hdf5(self.fname_temp, result_dict)
         except Exception:
             traceback.print_exc()
@@ -138,23 +142,19 @@ class XpcsResult:
         else:
             self.success = True and self.success
 
-    def save(self, result_dict):
+    def append_and_link_G2(self, G2_dict):
         """
-        Save the provided result_dict to the temporary files.
+        append the provided result_dict to the temporary files.
         """
         try:
-            G2 = result_dict.pop('G2IPIF', None)
-            # append analysis config to the results
-            result_dict.update(self.analysis_config)
-            put_results_in_hdf5(self.fname_temp, result_dict)
-
-            if G2 is not None:
-                put_results_in_hdf5(self.G2_fname_temp, {'G2IPIF': G2}, mode="raw")
-                # Create a link for the main file
-                with h5py.File(self.fname_temp, 'r+') as f:
-                    relative_path = os.path.basename(self.G2_fname)
-                    f['/exchange/G2IPIF'] = h5py.ExternalLink(relative_path, 
-                                                              "/G2IPIF")
+            put_results_in_hdf5(self.G2_fname_temp, 
+                                {'G2IPIF': G2_dict},
+                                mode="raw")
+            # Create a link for the main file
+            with h5py.File(self.fname_temp, 'r+') as f:
+                relative_path = os.path.basename(self.G2_fname)
+                f['/xpcs/multitau/unnormalized_g2'] = \
+                    h5py.ExternalLink(relative_path, "/G2IPIF")
         except Exception:
             traceback.print_exc()
             self.success = False
