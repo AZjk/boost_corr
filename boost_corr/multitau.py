@@ -358,16 +358,19 @@ class MultitauCorrelator(object):
         tline = torch.arange(intt.shape[0], device=intt.device)
         intt = torch.vstack([tline, intt])
 
-        output_dir = {
-            'intensity_vs_time': intt.float(),
+        output_scattering = {
             'saxs_2d': self.saxs_2d.float(),
-            'saxs_2d_segments': self.saxs_2d_par.float(),
+            'saxs_2d_par': self.saxs_2d_par.float(),
+            'intensity_vs_time': intt.float(),
+            'mask_crop': self.mask_crop,
+        }
+
+        output_multitau = {
             'G2': self.g2.float(),
             'mask_crop': self.mask_crop,
             'tau': self.tau_bin[0, :]
         }
-
-        return output_dir
+        return output_scattering, output_multitau
 
 
 def read_data(

@@ -83,6 +83,14 @@ def average_with_index_map(
     return avg
 
 
+def convert_to_numpy(output_dict):
+    for k, v in output_dict.items():
+        if isinstance(v, torch.Tensor):
+            output_dict[k] = v.float().cpu().numpy()
+        if isinstance(v, np.ndarray) and v.dtype == np.float64:
+            output_dict[k] = v.astype(np.float32)
+    return output_dict
+
 
 class XpcsQPartitionMap(object):
     def __init__(self, qmap_fname, flag_fix=False, flag_sort=False,
@@ -281,18 +289,10 @@ class XpcsQPartitionMap(object):
         full_img = full_img.reshape(1, *self.det_size)
         return full_img
 
-    def normalize_data(self, res, save_G2=False):
+    def normalize_multitau(self, res, save_G2=False):
         flag_crop = res['mask_crop'] is not None
-        saxs1d = self.normalize_sqmap(res["saxs_2d"], flag_crop)
-        # make saxs2d has ndim of 2 instead of 3.
-        saxs2d = self.recover_dimension(res['saxs_2d'], flag_crop)[0]
-        saxs1d_par = self.normalize_sqmap(res["saxs_2d_segments"], flag_crop)
         g2, g2_err = self.compute_g2(res["G2"], flag_crop)
         output_dir = {
-            'saxs_2d': saxs2d,
-            'saxs_1d': saxs1d,
-            'saxs_1d_segments': saxs1d_par,
-            'intensity_vs_time': res['intensity_vs_time'],
             'delay_list': res['tau'],
             'g2': g2,
             'g2_err': g2_err
@@ -311,27 +311,23 @@ class XpcsQPartitionMap(object):
 
             # the final shape of G2IPIF is (num_tau, 3, det_row, det_col)
             output_dir['G2IPIF'] = value.reshape(-1, 3, *self.det_size)
-
-        for k, v in output_dir.items():
-            if isinstance(v, torch.Tensor):
-                output_dir[k] = v.float().cpu().numpy()
+        output_dir = convert_to_numpy(output_dir)
         return output_dir
 
-    def normalize_saxs(self, res):
+    def normalize_scattering(self, res):
         flag_crop = res['mask_crop'] is not None
-        if res["saxs2d"].shape == self.det_size:
+        if res["saxs_2d"].shape == self.det_size:
             flag_crop = False
-        saxs1d = self.normalize_sqmap(res["saxs2d"], flag_crop)
-        saxs2d = self.recover_dimension(res['saxs2d'], flag_crop)
-        saxs1d_par = self.normalize_sqmap(res["saxs2d_par"], flag_crop)
+        saxs1d = self.normalize_sqmap(res["saxs_2d"], flag_crop)
+        saxs2d = self.recover_dimension(res['saxs_2d'], flag_crop)
+        saxs1d_par = self.normalize_sqmap(res["saxs_2d_par"], flag_crop)
         output_dir = {
             'saxs_2d': saxs2d,
             'saxs_1d': saxs1d,
             'saxs_1d_segments': saxs1d_par,
+            'intensity_vs_time': res['intensity_vs_time'],
         }
-        for k, v in output_dir.items():
-            if isinstance(v, torch.Tensor):
-                output_dir[k] = v.float().cpu().numpy()
+        output_dir = convert_to_numpy(output_dir)
         return output_dir
 
     def compute_g2(self, G2, flag_crop):

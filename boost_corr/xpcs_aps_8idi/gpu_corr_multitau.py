@@ -34,6 +34,7 @@ def solve_multitau_base(
     overwrite: bool = False,
     save_G2: bool = False,
     analysis_kwargs: Optional[dict] = None,
+    save_results: bool = True,
     **kwargs: Any,
 ) -> Union[str, None]:
 
@@ -88,14 +89,26 @@ def solve_multitau_base(
                 f" frequency = {frequency:.2f} Hz")
 
     t_start = time.perf_counter()
-    result = xb.get_results()
-    result = qpm.normalize_data(result, save_G2=save_G2)
+    output_scattering, output_multitau = xb.get_results()
+    norm_scattering = qpm.normalize_scattering(output_scattering)
+    norm_multitau = qpm.normalize_multitau(output_multitau, save_G2=save_G2)
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
-    with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
-                    multitau_config=analysis_kwargs) as result_file:
-        result_file.save(result)
+    if save_results:
+        with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
+                        multitau_config=analysis_kwargs) as result_file:
+            result_file.append(norm_scattering)
+            result_file.append(norm_multitau)
 
-    logger.info(f"multitau analysis finished")
-    return result_file.fname
+        logger.info(f"multitau analysis finished")
+        return result_file.fname
+    else:
+        result_file_kwargs = {
+            'meta_dir': meta_dir,
+            'qmap_fname': qmap,
+            'output_dir': output,
+            'overwrite': overwrite,
+            'multitau_config': analysis_kwargs
+        }
+        return result_file_kwargs, (norm_scattering, norm_multitau)
