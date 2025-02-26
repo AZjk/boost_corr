@@ -210,19 +210,16 @@ class TwotimeCorrelator():
         # smooth data
         self.compute_smooth_data(smooth_method)
 
-    def get_twotime_result(self, skip_mean=False, **kwargs):
+    def get_twotime_generator(self, **kwargs):
         for c2 in self.calc_normal_twotime(**kwargs):
             yield {f'correlation_map/c2_{self.c2_idx:05d}': c2}
             self.c2_idx += 1
 
-        # get the average and g2full/partials
         self.g2full = torch.stack(self.g2full).swapaxes(0, 1)
         self.g2partial = torch.stack(self.g2partial).permute(2, 1, 0)
         results = {
-            'intensity_vs_time': self.frame_sum,
             'c2_g2': self.g2full,
             'c2_g2_segments': self.g2partial,
-            'saxs_2d': self.pixel_sum,
             'processed_bins': self.dq_idx
         }
 
@@ -231,15 +228,13 @@ class TwotimeCorrelator():
                 results[k] = v.cpu().numpy()
         yield results
 
-    def get_saxs(self):
+    def get_scattering(self):
         num_par = self.pixel_sum_par.shape[0]
         saxs = {
-            'saxs2d':
-            self.pixel_sum.reshape(-1)[self.mask_crop],
-            'saxs2d_par':
-            self.pixel_sum_par.reshape(num_par, -1)[:, self.mask_crop],
-            'mask_crop':
-            self.mask_crop,
+            'saxs_2d': self.pixel_sum.reshape(-1)[self.mask_crop],
+            'saxs_2d_par': self.pixel_sum_par.reshape(num_par, -1)[:, self.mask_crop],
+            'mask_crop': self.mask_crop,
+            'intensity_vs_time': self.frame_sum,
         }
         return saxs
 

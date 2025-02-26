@@ -37,6 +37,7 @@ def solve_twotime_base(
     dq_selection: Optional[Union[str, Path]] = None,
     smooth: str = 'sqmap',
     analysis_kwargs: Optional[dict] = None,
+    save_results: bool = True,
     **kwargs):
 
     log_level = logging.INFO if verbose else logging.ERROR
@@ -89,16 +90,27 @@ def solve_twotime_base(
                 f" frequency = {frequency:.2f} Hz")
 
     t_start = time.perf_counter()
-    saxs = twotime_correlator.get_saxs()
-    norm_data = qpm.normalize_saxs(saxs)
+    raw_scattering = twotime_correlator.get_scattering()
+    norm_scattering = qpm.normalize_scattering(raw_scattering)
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
     # saving results to file
-    with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
-                    twotime_config=analysis_kwargs) as result_file:
-        result_file.save(norm_data)
-        for info in twotime_correlator.get_twotime_result():
-            result_file.save_incremental_results(info)
-    logger.info(f"twotime analysis finished")
-    return result_file.fname
+    if save_results:
+        with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
+                        twotime_config=analysis_kwargs) as result_file:
+            result_file.append(norm_scattering)
+            for c2_payload in twotime_correlator.get_twotime_generator():
+                result_file.append(c2_payload)
+
+        logger.info(f"twotime analysis finished")
+        return result_file.fname
+    else:
+        result_file_kwargs = {
+            'meta_dir': meta_dir,
+            'qmap_fname': qmap,
+            'output_dir': output,
+            'overwrite': overwrite,
+            'twotime_config': analysis_kwargs
+        }
+        return result_file_kwargs, (norm_scattering, twotime_correlator.get_twotime_generator())
