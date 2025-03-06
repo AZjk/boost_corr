@@ -3,15 +3,16 @@ import json
 import traceback
 import argparse
 import logging
-from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
-from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
-from boost_corr.xpcs_aps_8idi.gpu_record import get_gpu, release_gpu
 
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
     datefmt="%m-%d %H:%M:%S")
+
+# disable hdf5plugin info logging
+logging.getLogger('hdf5plugin').setLevel(logging.WARNING)
+
 
 def convert_to_list(input_str: str):
     """
@@ -32,153 +33,160 @@ def convert_to_list(input_str: str):
     result = sorted(list(set(result)))
     return result
 
-
 default_config = {
-    "qmap": None,   # use a valid qmap fname here
+    "qmap": None,              # Path to qmap file
     "output": "cluster_results",
     "smooth": "sqmap",
-    "gpu_id": -1,
-    "begin_frame": 1,
-    "end_frame": -1,
+    "gpu_id": -1,             # -1 for CPU
+    "begin_frame": 0,
+    "end_frame": -1,          # -1 for all frames
     "stride_frame": 1,
     "avg_frame": 1,
-    "type": "Multitau",
+    "type": "Multitau",       # "Multitau", "Twotime", or "Both"
     "dq_selection": "all",
     "verbose": False,
-    "dryrun": False,
+    "dry_run": False,         # Changed from "dryrun"
     "overwrite": False,
-    "save_G2": False,
+    "save_G2": False,         # Changed from "save_G2"
 }
+
 
 description = ("Compute Multi-tau/Twotime correlation for APS-8IDI XPCS "
                "datasets on GPU/CPU")
 parser = argparse.ArgumentParser(description=description)
 
-parser.add_argument("-r",
-                    "--raw",
-                    metavar="RAW_FILENAME",
-                    type=str,
-                    required=True,
-                    help="the filename of the raw data file (imm/rigaku/hdf)")
+parser.add_argument(
+    "-r", "--raw",
+    metavar="RAW_FILENAME",
+    type=str,
+    required=True,
+    help="Filename of the raw data file (imm/rigaku/hdf)"
+)
 
-parser.add_argument("-q",
-                    "--qmap",
-                    metavar="QMAP_FILENAME",
-                    default=default_config['qmap'],
-                    required=False,
-                    type=str,
-                    help="the filename of the qmap file (h5/hdf)")
+parser.add_argument(
+    "-q", "--qmap",
+    metavar="QMAP_FILENAME",
+    type=str,
+    required=False,
+    default=default_config['qmap'],
+    help="Filename of the qmap file (h5/hdf)"
+)
 
-parser.add_argument("-o",
-                    "--output",
-                    metavar="OUTPUT_DIR",
-                    type=str,
-                    required=False,
-                    default=default_config['output'],
-                    help="""[default: cluster_results] the output directory
-                            for the result file. If not exit, the program will
-                            create this directory.""")
+parser.add_argument(
+    "-o", "--output",
+    metavar="OUTPUT_DIR",
+    type=str,
+    required=False,
+    default=default_config['output'],
+    help="Output directory for result files. Directory will be created if it "
+         "doesn't exist. [default: %(default)s]"
+)
 
-parser.add_argument("-s",
-                    "--smooth",
-                    metavar="SMOOTH",
-                    type=str,
-                    required=False,
-                    default=default_config['smooth'],
-                    help="""[default: sqmap] smooth method to be used in
-                            Twotime correlation. """)
+parser.add_argument(
+    "-s", "--smooth",
+    metavar="SMOOTH",
+    type=str,
+    required=False,
+    default=default_config['smooth'],
+    help="Smooth method for Twotime correlation. [default: %(default)s]"
+)
 
-parser.add_argument("-i",
-                    "--gpu_id",
-                    metavar="GPU_ID",
-                    type=int,
-                    default=default_config['gpu_id'],
-                    help="""[default: -1] choose which GPU to use. if the input
-                            is -1, then CPU is used""")
+parser.add_argument(
+    "-i", "--gpu-id",
+    metavar="GPU_ID",
+    type=int,
+    default=default_config['gpu_id'],
+    help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific "
+         "GPU. [default: %(default)s]"
+)
 
-parser.add_argument("-begin_frame",
-                    type=int,
-                    default=default_config['begin_frame'],
-                    help="""[default: 1] begin_frame specifies which frame to
-                            begin with for the correlation. This is useful to
-                            get rid of the bad frames in the beginning.""")
+parser.add_argument(
+    "-b", "--begin-frame",
+    type=int,
+    default=default_config['begin_frame'],
+    help="Starting frame index (0-based) for correlation. Used to skip bad "
+         "initial frames. [default: %(default)s]"
+)
 
-parser.add_argument("-end_frame",
-                    type=int,
-                    default=default_config['end_frame'],
-                    help="""[default: -1] end_frame specifies the last frame
-                            used for the correlation. This is useful to
-                            get rid of the bad frames in the end. If -1 is
-                            used, end_frame will be set to the number of
-                            frames, i.e. the last frame""")
+parser.add_argument(
+    "-e", "--end-frame",
+    type=int,
+    default=default_config['end_frame'],
+    help="Ending frame index (0-based, exclusive) for correlation. -1 uses all "
+         "frames after begin_frame. [default: %(default)s]"
+)
 
-parser.add_argument("-stride_frame",
-                    type=int,
-                    default=default_config['stride_frame'],
-                    help="""[default: 1] stride_frame defines the stride.""")
+parser.add_argument(
+    "-f", "--stride-frame",
+    type=int,
+    default=default_config['stride_frame'],
+    help="Frame stride for processing. [default: %(default)s]"
+)
 
-parser.add_argument("-avg_frame",
-                    type=int,
-                    default=default_config['avg_frame'],
-                    help="""[default: 1] stride_frame defines the number of
-                            frames to be averaged before the correlation.""")
+parser.add_argument(
+    "-a", "--avg-frame",
+    type=int,
+    default=default_config['avg_frame'],
+    help="Number of frames to average before correlation. "
+         "[default: %(default)s]"
+)
 
+parser.add_argument(
+    "-t", "--type",
+    metavar="TYPE",
+    type=str,
+    required=False,
+    default=default_config['type'],
+    help='Analysis type: "Multitau", "Twotime", or "Both". '
+         '[default: %(default)s]'
+)
 
-parser.add_argument("-t",
-                    "--type",
-                    metavar="TYPE",
-                    type=str,
-                    required=False,
-                    default=default_config['type'],
-                    help="""
-                        [default: "Multitau"] Analysis type: ["Multitau",
-                        "Twotime", "Both"].""")
+parser.add_argument(
+    "-d", "--dq-selection",
+    metavar="DQ_SELECTION",
+    type=str,
+    required=False,
+    default=default_config['dq_selection'],
+    help='DQ list selection (e.g., "1,2,5-7" selects [1,2,5,6,7]). "all" uses '
+         'all dynamic qindex. [default: %(default)s]'
+)
 
-parser.add_argument("-dq",
-                    "--dq_selection",
-                    metavar="TYPE",
-                    type=str,
-                    required=False,
-                    default=default_config['dq_selection'],
-                    help="""
-                        [default: "all"] dq_selection: a string that select
-                        the dq list, eg. '1, 2, 5-7' selects [1,2,5,6,7].
-                        If 'all', all dynamic qindex will be used. """)
+parser.add_argument(
+    "-v", "--verbose",
+    action="store_true",
+    default=default_config['verbose'],
+    help="Enable verbose output"
+)
 
-parser.add_argument("--verbose",
-                    "-v",
-                    default=default_config['verbose'],
-                    action="store_true",
-                    help="verbose")
+parser.add_argument(
+    "-G", "--save-g2",
+    action="store_true",
+    default=default_config['save_G2'],
+    help="Save G2, IP, and IF to file"
+)
 
-parser.add_argument("--save_G2",
-                    default=default_config['save_G2'],
-                    action="store_true",
-                    help="save G2, IP, IF to file")
+parser.add_argument(
+    "-n", "--dry-run",
+    action="store_true",
+    default=default_config['dry_run'],
+    help="Show arguments without executing"
+)
 
-parser.add_argument("--dryrun",
-                    "-dr",
-                    default=default_config['dryrun'],
-                    action="store_true",
-                    help="dryrun: only show the argument without execution.")
+parser.add_argument(
+    "-w", "--overwrite",
+    action="store_true",
+    default=default_config['overwrite'],
+    help="Overwrite existing result files"
+)
 
-parser.add_argument("--overwrite",
-                    "-ow",
-                    default=default_config['overwrite'],
-                    action="store_true",
-                    help="whether to overwrite the existing result file.")
-
-parser.add_argument("-c",
-                    "--config",
-                    metavar="CONFIG.JSON",
-                    type=str,
-                    required=False,
-                    help="""
-                        configuration file to be used. if the same key is
-                        passed as an argument, the value in the configure file
-                        will be omitted.
-                    """)
-
+parser.add_argument(
+    "-c", "--config",
+    metavar="CONFIG_JSON",
+    type=str,
+    required=False,
+    help="Configuration file path. Command line arguments override config file "
+         "values"
+)
 
 args = parser.parse_args()
 kwargs = vars(args)
@@ -197,40 +205,41 @@ if args.config is not None:
 
 kwargs['dq_selection'] = convert_to_list(kwargs['dq_selection'])
 
-# automatically obtain gpu id
-gpu_id_auto = None 
-if kwargs['gpu_id'] == -2:
-    gpu_id_auto = get_gpu()
-    kwargs['gpu_id'] = gpu_id_auto
-
 
 def main():
     flag = 0
-
-    if kwargs['dryrun']:
-        ans = 'dryrun_only'
+    if kwargs['dry_run']:
+        ans = 'dry_run_only'
         print(json.dumps(kwargs, indent=4))
     else:
-        kwargs.pop('dryrun')
+        kwargs.pop('dry_run')
         atype = kwargs.pop('type')
         if atype == 'Multitau':
+            from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
             method = solve_multitau
         elif atype == 'Twotime':
+            from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
             method = solve_twotime
+        elif atype == 'Both':
+            from boost_corr.xpcs_aps_8idi.gpu_corr import solve_corr
+            method = solve_corr
         else:
             flag = 1
             raise ValueError(f'Analysis type [{atype}] not supported.')
 
         ans = None
         try:
-            ans = method(**kwargs)
+            if kwargs['gpu_id'] == -2:
+                from boost_corr.gpu_scheduler import  GPUScheduler
+                with GPUScheduler(max_try=7200, sleep_duration=1) as scheduler:
+                    kwargs['gpu_id'] = scheduler.gpu_id
+                    ans = method(**kwargs)
+            else:
+                ans = method(**kwargs)
         except Exception:
             flag = 1
             traceback.print_exc()
-
-        # relase gpu_id_auto
-        if gpu_id_auto is not None:
-            release_gpu(gpu_id_auto)
+            raise
 
     # send the result's fname to std-out
     print(ans)

@@ -82,8 +82,7 @@ class HdfDataset(XpcsDataset):
         beg, end, size = self.get_raw_index(idx)
         if self.cache is None or self.cache.shape[0] != size:
             self.cache = np.zeros(shape=(size, self.shape[1], self.shape[2]), dtype=self.dtype)
-
-        idx_list = np.arange(beg, end, self.stride)
+        # idx_list = np.arange(beg, end, self.stride)
 
         self.data.read_direct(self.cache, np.s_[beg:end:self.stride])
         x = self.cache.reshape(size, self.pixel_num)

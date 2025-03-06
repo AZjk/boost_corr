@@ -4,6 +4,7 @@ from .rigaku_handler import RigakuDataset
 import os
 import logging
 import torch
+from .help_functions import get_number_of_frames_from_binfile
 
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class Rigaku3MDataset(XpcsDataset):
     filename: string
         path to Rigaku3M binary.000 file
     """
-    def __init__(self, *args, dtype=np.uint8, gap=(71, 50), layout=(3, 2),
+    def __init__(self, *args, dtype=np.uint8, gap=(70, 52), layout=(3, 2),
                  **kwargs):
         super(Rigaku3MDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Rigaku 64bit Binary"
@@ -33,11 +34,20 @@ class Rigaku3MDataset(XpcsDataset):
         flist = [self.fname[:-3] + f'00{n}' for n in index_list]
         for f in flist:
             assert os.path.isfile(f)
-        return [RigakuDataset(f, dtype=dtype, **kwargs) for f in flist]
+        # determine the total number of frames
+        total_frames = [get_number_of_frames_from_binfile(f) for f in flist]
+        for n, f in enumerate(flist):
+            logger.info(f'{f}: {total_frames[n]}')
+        total_frames = max(total_frames)
+        
+        kwargs.pop('mask_crop', None)
+        return [RigakuDataset(f, dtype=dtype, mask_crop=None,
+                              total_frames=total_frames, **kwargs) 
+                for f in flist]
     
     def update_info(self):
         frame_num = [x.frame_num for x in self.container]
-        assert len(list(set(frame_num))) == 1, 'check frame numbers'
+        assert len(list(set(frame_num))) == 1, 'frame number mismatch in the 6 modules'
         self.update_batch_info(frame_num[0])
         shape_one = self.container[0].det_size 
         shape = [shape_one[n] * self.layout[n] + self.gap[n] * (self.layout[n] - 1) for n in range(2)]
@@ -56,15 +66,18 @@ class Rigaku3MDataset(XpcsDataset):
         return canvas
     
     def __getbatch__(self, idx):
-        # frame begin and end
-        beg, end, size = self.get_raw_index(idx)
+        _, _, size = self.get_raw_index(idx)
         canvas = torch.zeros(size, *self.det_size, dtype=torch.uint8,
                              device=self.device)
         for index, module in enumerate(self.container):
             temp = module.__getbatch__(idx)
             canvas = self.append_data(canvas, index, temp)
+        
+        canvas = canvas.reshape(size, -1)
+        if self.mask_crop is not None:
+            canvas = canvas[:, self.mask_crop]
 
-        return canvas.reshape(size, -1)
+        return canvas
 
 
 def test():
