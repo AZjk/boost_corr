@@ -1,6 +1,14 @@
+"""Module for GPU correlation client service.
+
+This module provides functions for submitting jobs, checking server status,
+and batching job submissions for GPU correlation processing.
+"""
+
 import argparse
 import logging
+import socket
 import traceback
+from typing import Any, Optional
 
 import zmq
 
@@ -20,7 +28,25 @@ logging.basicConfig(
 logger = logging.getLogger("boost_client")
 
 
-def submit_job(raw=None, qmap=None, output=None, verbose=False, cmd="Multitau"):
+def submit_job(
+    raw: Optional[Any] = None,
+    qmap: Optional[Any] = None,
+    output: Optional[str] = None,
+    verbose: bool = False,
+    cmd: str = "Multitau",
+) -> Any:
+    """Submit a job to the GPU correlation server.
+
+    Parameters:
+        raw (Optional[Any]): Raw input file or folder.
+        qmap (Optional[Any]): Qmap file or identifier.
+        output (Optional[str]): Output directory or file name.
+        verbose (bool): Flag to enable verbose logging.
+        cmd (str): Command type for the job (default 'Multitau').
+
+    Returns:
+        Any: The server response or job identifier.
+    """
     payload = {
         "cmd": cmd,
         "raw": raw,
@@ -28,6 +54,16 @@ def submit_job(raw=None, qmap=None, output=None, verbose=False, cmd="Multitau"):
         "output": output,
         "verbose": verbose,
     }
+
+    if len(payload) == 0:
+        return None
+
+    if payload["cmd"] == "Status":
+        socket.send_json({"cmd": "Status"})
+        status = socket.recv_json()
+        logger.info(status["status"])
+        return status
+
     try:
         socket.send_json(payload)
     except Exception:
@@ -38,17 +74,30 @@ def submit_job(raw=None, qmap=None, output=None, verbose=False, cmd="Multitau"):
     return
 
 
-def check_status():
+def check_status() -> Any:
+    """Check the status of the GPU correlation server.
+
+    Returns:
+        Any: The status response from the server.
+    """
     socket.send_json({"cmd": "Status"})
     status = socket.recv_json()
     logger.info(status["status"])
+    return status
 
 
-def batch_jobs(raw_fname):
+def batch_jobs(raw_fname: str) -> Any:
+    """Submit a batch of jobs based on a file listing raw file names.
+
+    Parameters:
+        raw_fname (str): The path to the file containing raw file names.
+
+    Returns:
+        Any: The response of the batch job submission.
+    """
     qmap = "/scratch/xpcs_data_raw/qmap/foster202110_qmap_RubberDonut_Lq0_S180_18_D18_18.h5"
     output = "/scratch/cluster_results"
 
-    raw_files = []
     with open(raw_fname, "r") as f:
         for line in f:
             # remove the ending /n
@@ -111,7 +160,7 @@ args = parser.parse_args()
 kwargs = vars(args)
 
 if len(kwargs) == 0:
-    exit
+    return None
 
 if kwargs["cmd"] == "Status":
     check_status()

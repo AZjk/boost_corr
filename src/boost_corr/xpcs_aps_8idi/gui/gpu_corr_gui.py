@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional
 
 import psutil
 import torch
@@ -111,7 +112,20 @@ class TableDataModel(QtCore.QAbstractTableModel):
 
 
 class Ui(QMainWindow):
-    def __init__(self, config_fname=None):
+    """Main window for the GPU correlation GUI.
+
+    This class manages the main UI elements used in the GPU correlation application.
+
+    Attributes:
+        config_fname (Optional[str]): Path to configuration file.
+    """
+
+    def __init__(self, config_fname: Optional[str] = None) -> None:
+        """Initialize the main UI.
+
+        Parameters:
+            config_fname (Optional[str]): Path to configuration file.
+        """
         super(Ui, self).__init__()
         uic.loadUi("gpu_corr.ui", self)
         self.sys_info = get_system_information()
@@ -135,7 +149,8 @@ class Ui(QMainWindow):
         self.show()
         self.adjust_gpu_id()
 
-    def load_qmap(self):
+    def load_qmap(self) -> None:
+        """Load the qmap file using a file dialog and update the configuration."""
         work_dir = os.path.dirname(self.qmap.text())
         if not os.path.isdir(work_dir):
             work_dir = None
@@ -145,7 +160,8 @@ class Ui(QMainWindow):
         self.config["qmap"] = f
         self.qmap.setText(f)
 
-    def load_raw(self):
+    def load_raw(self) -> None:
+        """Load raw folder(s) using a file dialog and update configuration."""
         # https://stackoverflow.com/questions/38252419
         file_dialog = QFileDialog(self, directory=self.last_raw_dir)
         file_dialog.setFileMode(QFileDialog.DirectoryOnly)
@@ -178,7 +194,8 @@ class Ui(QMainWindow):
             self.raw_folder.addItems(valid_path)
             self.last_raw_dir = os.path.dirname(valid_path[-1])
 
-    def set_output(self):
+    def set_output(self) -> None:
+        """Set the output directory using a file dialog and update configuration."""
         work_dir = os.path.dirname(self.output.text())
         if not os.path.isdir(work_dir):
             work_dir = None
@@ -191,7 +208,8 @@ class Ui(QMainWindow):
         self.config["output"] = f
         self.output.setText(f)
 
-    def adjust_gpu_id(self):
+    def adjust_gpu_id(self) -> None:
+        """Adjust the GPU id display based on current configuration."""
         gpu_id = self.gpu_id.value()
         device = self.sys_info["device"][gpu_id]
         self.gpu_id_label.setText("Processing Unit ID (%s)" % device["name"])
@@ -199,14 +217,20 @@ class Ui(QMainWindow):
         self.max_memory.setValue(device["total_memory"] * 0.5)
         return
 
-    def update_table(self):
+    def update_table(self) -> None:
+        """Update the job table display."""
         self.workers.emit()
 
-    def clear_raw_folders(self):
+    def clear_raw_folders(self) -> None:
+        """Clear the raw folder list from UI and configuration."""
         self.raw_folder.clear()
         self.config["raw_folder"] = []
 
-    def submit_job(self):
+    def submit_job(self) -> None:
+        """Submit a new job based on current UI configuration.
+
+        This method collects parameters from the UI, creates a job, and starts the corresponding worker.
+        """
         kwargs = {}
         kwargs.update(self.config)
         raw_folders = kwargs.pop("raw_folder")

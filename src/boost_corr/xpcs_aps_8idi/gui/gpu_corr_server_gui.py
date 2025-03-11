@@ -1,4 +1,4 @@
-'''Module for GPU correlation server GUI. Provides classes to create and manage the server GUI interface. '''
+"""Module for GPU correlation server GUI. Provides classes to create and manage the server GUI interface."""
 
 import json
 import os
@@ -33,6 +33,7 @@ if not os.path.isdir(home_dir):
 
 class SetupPreviewer(QSplitter):
     """A GUI class for setting up the previewer interface."""
+
     def __init__(self) -> None:
         """Initialize the SetupPreviewer instance."""
         super(SetupPreviewer, self).__init__()
@@ -81,6 +82,7 @@ class SetupPreviewer(QSplitter):
 
 class Ui(QMainWindow):
     """Main window for the GPU correlation server GUI."""
+
     def __init__(self) -> None:
         """Initialize the Ui instance and load the UI layout."""
         super(Ui, self).__init__()
