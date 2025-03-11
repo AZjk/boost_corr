@@ -2,7 +2,7 @@ OUTPUT_DIR=/clhome/MQICHU/ssd/cluster_results
 QMAP=/data/xpcs8//partitionMapLibrary/2021-1/cssiTest202103_qmap_Aerogel_good_1.h5
 
 for i in $(seq 4 6);
-do 
+do
   idx=$(printf "%03d" $i)
   echo " "
   echo $idx

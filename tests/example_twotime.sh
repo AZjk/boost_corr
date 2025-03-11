@@ -8,4 +8,3 @@ boost_corr \
 	-o /data/xpcs8/2022-1/leheny202202/cluster_results_RealTime -s sqmap -v \
 	-avg_frame 3 \
 	-dq "1-60"
-

@@ -5,4 +5,3 @@ boost_corr \
         -q /net/s8iddata/export/8-id-e/partitionMapLibrary/2021-2/dufresne20210727_qmap_A050_1.h5 \
         -v \
         -o /clhome/MQICHU/ssd/cluster_results
-

@@ -1,0 +1,418 @@
+"""TODO: Add module-level docstring for gpu_corr_gui.
+This module provides the GPU correlation GUI functionality.
+"""
+
+import json
+import os
+from typing import Optional
+
+import psutil
+import torch
+from gpu_corr_solver import GPUSolverWorker, get_raw_meta
+from PyQt5 import QtCore, uic
+from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QFileDialog,
+    QListView,
+    QMainWindow,
+    QTreeView,
+)
+
+
+def get_system_information():
+    """TODO: Add docstring for get_system_information.
+
+    Returns:
+        dict: System information including GPU and CPU details.
+    """
+    sys_info = {}
+    sys_info["num_gpus"] = torch.cuda.device_count()
+    sys_info["num_cpus"] = psutil.cpu_count(logical=False)
+    scale = 1024**3
+
+    device = {}
+    for n in range(sys_info["num_gpus"]):
+        a = torch.cuda.get_device_properties("cuda:%d" % n)
+        device[n] = {"name": a.name, "total_memory": a.total_memory / scale}
+
+    cpu_ram = psutil.virtual_memory().total / scale
+    # set an upper limit to cpu_ram;
+    cpu_ram = min(36.0, cpu_ram)
+    device[-1] = {"name": "cpu", "total_memory": cpu_ram}
+    sys_info["device"] = device
+
+    return sys_info
+
+
+class TableDataModel(QtCore.QAbstractTableModel):
+    """TODO: Add docstring for TableDataModel class.
+
+    This class represents a table model used in the GPU correlation GUI.
+    """
+
+    def __init__(self, input_list=None, max_display=16384) -> None:
+        """TODO: Add docstring for __init__ method.
+
+        Parameters:
+            input_list (list, optional): Initial list of items. Defaults to None.
+            max_display (int, optional): Maximum number of items to display. Defaults to 16384.
+        """
+        super().__init__()
+        if input_list is None:
+            self.input_list = []
+        else:
+            self.input_list = input_list
+        self.max_display = max_display
+        self.xlabels = [
+            "id",
+            "priority",
+            "gpu_id",
+            "status",
+            "frames",
+            "progress(%)",
+            "time/freq",
+            "fname",
+        ]
+
+    def data(self, index, role):
+        """TODO: Add docstring for data method.
+
+        Parameters:
+            index: QModelIndex for the data.
+            role: Role for data retrieval.
+
+        Returns:
+            Any: Data corresponding to the given index and role.
+        """
+        if role == QtCore.Qt.DisplayRole:
+            x = self.input_list[len(self.input_list) - 1 - index.row()]
+            ret = x.get_data()
+            return ret[index.column()]
+        return None
+
+    def rowCount(self, index):
+        """TODO: Add docstring for rowCount method.
+
+        Parameters:
+            index: Parent QModelIndex (unused).
+
+        Returns:
+            int: Number of rows, limited by max_display.
+        """
+        return min(self.max_display, len(self.input_list))
+
+    def columnCount(self, index):
+        """TODO: Add docstring for columnCount method.
+
+        Parameters:
+            index: Parent QModelIndex (unused).
+
+        Returns:
+            int: Number of columns determined by xlabels length.
+        """
+        return len(self.xlabels)
+
+    def headerData(self, section, orientation, role):
+        """TODO: Add docstring for headerData method.
+
+        Parameters:
+            section: Section index.
+            orientation: Orientation (horizontal/vertical).
+            role: Role for header data retrieval.
+
+        Returns:
+            Any: Header information if applicable, otherwise None.
+        """
+        if role == QtCore.Qt.DisplayRole:
+            if orientation == QtCore.Qt.Horizontal:
+                return self.xlabels[section]
+        return None
+
+    def extend(self, new_input_list):
+        """TODO: Add docstring for extend method.
+
+        Parameters:
+            new_input_list (list): List of items to extend the model with.
+        """
+        self.input_list.extend(new_input_list)
+        self.layoutChanged.emit()
+
+    def append(self, new_item):
+        """TODO: Add docstring for append method.
+
+        Parameters:
+            new_item: Single item to append to the model.
+        """
+        self.input_list.append(new_item)
+        self.layoutChanged.emit()
+
+    def replace(self, new_input_list):
+        """TODO: Add docstring for replace method.
+
+        Parameters:
+            new_input_list (list): New list of items to replace the current model data.
+        """
+        self.input_list.clear()
+        self.extend(new_input_list)
+
+    def pop(self, index):
+        """TODO: Add docstring for pop method.
+
+        Parameters:
+            index (int): Index of the item to remove from the model.
+        """
+        if 0 <= index < self.__len__():
+            self.input_list.pop(index)
+            self.layoutChanged.emit()
+
+    def __len__(self) -> int:
+        """TODO: Add docstring for __len__ magic method.
+
+        Returns:
+            int: The number of items in the model.
+        """
+        return len(self.input_list)
+
+    def __getitem__(self, i):
+        """TODO: Add docstring for __getitem__ magic method.
+
+        Parameters:
+            i (int): Index of the item to retrieve.
+
+        Returns:
+            Any: The item at the given index.
+        """
+        return self.input_list[i]
+
+    def copy(self):
+        """TODO: Add docstring for copy method.
+
+        Returns:
+            list: A shallow copy of the model's input list.
+        """
+        return self.input_list.copy()
+
+    def remove(self, x):
+        """TODO: Add docstring for remove method.
+
+        Parameters:
+            x: The item to remove from the model.
+        """
+        self.input_list.remove(x)
+
+    def clear(self):
+        """TODO: Add docstring for clear method.
+
+        Clears all items from the model's input list.
+        """
+        self.input_list.clear()
+
+    def emit(self):
+        """TODO: Add docstring for emit method.
+
+        Emits the layoutChanged signal to update the view.
+        """
+        self.layoutChanged.emit()
+
+
+class Ui(QMainWindow):
+    """Main window for the GPU correlation GUI.
+
+    This class manages the main UI elements used in the GPU correlation application.
+
+    Attributes:
+        config_fname (Optional[str]): Path to configuration file.
+    """
+
+    def __init__(self, config_fname: Optional[str] = None) -> None:
+        """Initialize the main UI.
+
+        Parameters:
+            config_fname (Optional[str]): Path to configuration file.
+        """
+        super(Ui, self).__init__()
+        uic.loadUi("gpu_corr.ui", self)
+        self.sys_info = get_system_information()
+        self.gpu_id.setMaximum(self.sys_info["num_gpus"] - 1)
+        self.num_worker.setMaximum(self.sys_info["num_cpus"])
+        self.num_worker.setValue(self.sys_info["num_cpus"] // 2)
+
+        self.config_fname = config_fname
+        self.config = None
+
+        # only allow one worker because the computing is intense; jobs will be
+        # queued
+        self.thread_pool = QtCore.QThreadPool()
+        self.thread_pool.setMaxThreadCount(1)
+        self.workers = TableDataModel()
+        self.job_table.setModel(self.workers)
+
+        self.job_count = 0
+        self.last_raw_dir = None
+        self.load_last_config()
+        self.show()
+        self.adjust_gpu_id()
+
+    def load_qmap(self) -> None:
+        """Load the qmap file using a file dialog and update the configuration."""
+        work_dir = os.path.dirname(self.qmap.text())
+        if not os.path.isdir(work_dir):
+            work_dir = None
+        f = QFileDialog.getOpenFileName(self, "select qmap file", directory=work_dir)[0]
+        if f in [None, ""]:
+            return
+        self.config["qmap"] = f
+        self.qmap.setText(f)
+
+    def load_raw(self) -> None:
+        """Load raw folder(s) using a file dialog and update configuration."""
+        # https://stackoverflow.com/questions/38252419
+        file_dialog = QFileDialog(self, directory=self.last_raw_dir)
+        file_dialog.setFileMode(QFileDialog.DirectoryOnly)
+        file_dialog.setOption(QFileDialog.DontUseNativeDialog, True)
+        file_view = file_dialog.findChild(QListView, "listView")
+
+        # to make it possible to select multiple directories:
+        if file_view:
+            file_view.setSelectionMode(QAbstractItemView.MultiSelection)
+        f_tree_view = file_dialog.findChild(QTreeView)
+        if f_tree_view:
+            f_tree_view.setSelectionMode(QAbstractItemView.MultiSelection)
+
+        paths = None
+        if file_dialog.exec():
+            paths = file_dialog.selectedFiles()
+
+        if paths in [None, "", []]:
+            return
+
+        valid_path = []
+        for x in paths:
+            raw, meta = get_raw_meta(x)
+            if raw is not None and meta is not None:
+                valid_path.append(x)
+
+        if len(valid_path) > 0:
+            self.config["raw_folder"].extend(valid_path)
+            # self.raw_folder.clear()
+            self.raw_folder.addItems(valid_path)
+            self.last_raw_dir = os.path.dirname(valid_path[-1])
+
+    def set_output(self) -> None:
+        """Set the output directory using a file dialog and update configuration."""
+        work_dir = os.path.dirname(self.output.text())
+        if not os.path.isdir(work_dir):
+            work_dir = None
+
+        f = QFileDialog.getExistingDirectory(
+            self, "select saving folder", directory=work_dir
+        )
+        if f in [None, ""]:
+            return
+        self.config["output"] = f
+        self.output.setText(f)
+
+    def adjust_gpu_id(self) -> None:
+        """Adjust the GPU id display based on current configuration."""
+        gpu_id = self.gpu_id.value()
+        device = self.sys_info["device"][gpu_id]
+        self.gpu_id_label.setText("Processing Unit ID (%s)" % device["name"])
+        self.max_memory.setMaximum(device["total_memory"] * 0.8)
+        self.max_memory.setValue(device["total_memory"] * 0.5)
+        return
+
+    def update_table(self) -> None:
+        """Update the job table display."""
+        self.workers.emit()
+
+    def clear_raw_folders(self) -> None:
+        """Clear the raw folder list from UI and configuration."""
+        self.raw_folder.clear()
+        self.config["raw_folder"] = []
+
+    def submit_job(self) -> None:
+        """Submit a new job based on current UI configuration.
+
+        This method collects parameters from the UI, creates a job, and starts the corresponding worker.
+        """
+        kwargs = {}
+        kwargs.update(self.config)
+        raw_folders = kwargs.pop("raw_folder")
+        self.raw_folder.clear()
+        self.config["raw_folder"] = []
+
+        kwargs["gpu_id"] = self.gpu_id.value()
+        kwargs["batch_size"] = int(self.batch_size.currentText())
+        kwargs["masked_ratio_threshold"] = self.masked_ratio_threshold.value()
+        kwargs["priority"] = self.job_priority.value()
+        kwargs["num_worker"] = self.num_worker.value()
+        kwargs["max_memory"] = self.max_memory.value()
+        if not os.path.isdir(kwargs["output"]) or not os.path.isfile(kwargs["qmap"]):
+            return
+
+        for n in range(len(raw_folders)):
+            kw = kwargs.copy()
+            kw["raw_folder"] = raw_folders[n]
+            self.job_count += 1
+            # self.job_producer.submit_job(kwargs)
+            worker = GPUSolverWorker(jid=self.job_count, **kw)
+            self.workers.append(worker)
+            worker.signals.status.connect(self.update_table)
+            worker.signals.progress.connect(self.update_table)
+            # the thread count is one; so if previous workers are running,
+            # the new # woker is queued until the previous one is done;
+            self.thread_pool.start(worker, priority=kw["priority"])
+
+    def save_config(self):
+        """Save the current configuration to file.
+
+        This method writes the current configuration stored in self.config to the file specified by self.config_fname.
+        """
+        with open(self.config_fname, "w") as fhdl:
+            json.dump(self.config, fhdl)
+
+    def load_last_config(self) -> None:
+        """Load the last saved configuration from the configuration file, if it exists.
+
+        This method reads the configuration from self.config_fname and updates the GUI components accordingly.
+        """
+        if os.path.isfile(self.config_fname):
+            with open(self.config_fname, "r") as fhdl:
+                self.config = json.load(fhdl)
+                for key, val in self.config.items():
+                    if val is None or key not in ["qmap", "output", "raw_folder"]:
+                        continue
+                    if key != "raw_folder":
+                        self.__dict__[key].setText(self.config[key])
+                    else:
+                        self.__dict__[key].addItems(self.config[key])
+                        if len(self.config[key]) > 0:
+                            self.last_raw_dir = os.path.dirname(self.config[key][0])
+        else:
+            self.config = {"qmap": None, "raw_folder": [], "output": None}
+        return
+
+    def closeEvent(self, e) -> None:
+        """Handle the close event by saving configuration before closing the GUI.
+
+        Parameters:
+            e: QCloseEvent, the close event.
+        """
+        self.save_config()
+
+    def __del__(self) -> None:
+        """Destructor for cleaning up GUI resources if needed.
+
+        This method is invoked when the instance is about to be destroyed.
+        """
+        pass
+
+
+home_dir = os.path.join(os.path.expanduser("~"), ".xpcs_boost")
+if not os.path.isdir(home_dir):
+    os.mkdir(home_dir)
+config_fname = os.path.join(home_dir, "last_config.json")
+app = QApplication([])
+window = Ui(config_fname)
+app.exec()
