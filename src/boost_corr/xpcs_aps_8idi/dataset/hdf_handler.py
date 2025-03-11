@@ -1,12 +1,12 @@
-import numpy as np
+import logging
+
+import h5py
 
 # required for bloc compression
-import hdf5plugin
-import h5py
+import numpy as np
 import torch
-import logging
-from .xpcs_dataset import XpcsDataset
 
+from boost_corr.xpcs_aps_8idi.dataset.xpcs_dataset import XpcsDataset
 
 logger = logging.getLogger(__name__)
 
@@ -17,17 +17,19 @@ class HdfDataset(XpcsDataset):
     ----------
     filename: string
     """
-    def __init__(self,
-                 *args,
-                 preload_size=8,
-                 dtype=np.uint8,
-                 data_path='/entry/data/data',
-                 **kwargs):
 
+    def __init__(
+        self,
+        *args,
+        preload_size=8,
+        dtype=np.uint8,
+        data_path="/entry/data/data",
+        **kwargs,
+    ):
         super(HdfDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "HDF5 Dataset"
         self.is_sparse = False
-        with h5py.File(self.fname, 'r') as f:
+        with h5py.File(self.fname, "r") as f:
             data = f[data_path]
             self.shape = data.shape
 
@@ -43,12 +45,14 @@ class HdfDataset(XpcsDataset):
                     self.dtype = np.int32
             elif data.dtype == np.uint32:
                 self.dtype = np.int32
-                logger.warn('cast uint32 to int32. it may cause ' + 
-                            'overflow when the maximal value >= 2^31')
+                logger.warn(
+                    "cast uint32 to int32. it may cause "
+                    + "overflow when the maximal value >= 2^31"
+                )
             else:
                 self.dtype = data.dtype
-        
-        if kwargs['avg_frame'] > 1:
+
+        if kwargs["avg_frame"] > 1:
             self.dtype = np.float32
         self.fhdl = None
         self.data = None
@@ -76,15 +80,17 @@ class HdfDataset(XpcsDataset):
         return numpy array, which will be converted to tensor with dataloader
         """
         if self.fhdl is None:
-            self.fhdl = h5py.File(self.fname, 'r', rdcc_nbytes=1024*1024*256)
+            self.fhdl = h5py.File(self.fname, "r", rdcc_nbytes=1024 * 1024 * 256)
             self.data = self.fhdl[self.data_path]
 
         beg, end, size = self.get_raw_index(idx)
         if self.cache is None or self.cache.shape[0] != size:
-            self.cache = np.zeros(shape=(size, self.shape[1], self.shape[2]), dtype=self.dtype)
+            self.cache = np.zeros(
+                shape=(size, self.shape[1], self.shape[2]), dtype=self.dtype
+            )
         # idx_list = np.arange(beg, end, self.stride)
 
-        self.data.read_direct(self.cache, np.s_[beg:end:self.stride])
+        self.data.read_direct(self.cache, np.s_[beg : end : self.stride])
         x = self.cache.reshape(size, self.pixel_num)
         if self.mask_crop is not None:
             x = x[:, self.mask_crop]
@@ -107,5 +113,5 @@ def test_bin(idx):
     ds.to_rigaku_bin(f"hdf2bin_{idx:03d}.bin")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_bin(4)

@@ -1,8 +1,8 @@
-import h5py
-import numpy as np
 import logging
 import traceback
 
+import h5py
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +27,13 @@ def put_results_in_hdf5(save_path, result, compression=None):
     -------
     None
     """
+
     def create_dataset_with_compression(f, path, data):
         """Helper function to create dataset with appropriate compression"""
         if isinstance(data, np.ndarray) and data.size > 1024 and compression is None:
-            return f.create_dataset(path, data=data, 
-                                    compression='gzip',
-                                    compression_opts=4, 
-                                    chunks=True)
+            return f.create_dataset(
+                path, data=data, compression="gzip", compression_opts=4, chunks=True
+            )
         return f.create_dataset(path, data=data, compression=compression)
 
     def save_dict_to_group(group, dictionary):
@@ -43,16 +43,18 @@ def put_results_in_hdf5(save_path, result, compression=None):
                 group.create_dataset(key, data=value)
 
     try:
-        with h5py.File(save_path, 'a') as f:
+        with h5py.File(save_path, "a") as f:
             for key, value in result.items():
                 # Skip None values
                 if value is None:
                     continue
 
                 # Determine path
-                path = (hdf_key["c2_prefix"] + '/' + key 
-                       if key.startswith('correlation_map/') 
-                       else hdf_key[key])
+                path = (
+                    hdf_key["c2_prefix"] + "/" + key
+                    if key.startswith("correlation_map/")
+                    else hdf_key[key]
+                )
 
                 # Delete existing dataset/group if it exists
                 if path in f:
@@ -73,5 +75,5 @@ def put_results_in_hdf5(save_path, result, compression=None):
         raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass

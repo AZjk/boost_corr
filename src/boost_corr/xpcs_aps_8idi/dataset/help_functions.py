@@ -1,5 +1,6 @@
 import os
 import struct
+
 import numpy as np
 
 
@@ -13,15 +14,15 @@ def convert_sparse(a):
     """
     output = np.zeros(shape=(3, a.size), dtype=np.uint32)
     # index of pixels in the detector
-    output[0] = ((a >> 16) & (2 ** 21 - 1)).astype(np.uint32)
+    output[0] = ((a >> 16) & (2**21 - 1)).astype(np.uint32)
     # index of frame
     output[1] = (a >> 40).astype(np.uint32)
     # photon count
-    output[2] = (a & (2 ** 12 - 1)).astype(np.uint8)
+    output[2] = (a & (2**12 - 1)).astype(np.uint8)
     return output
 
 
-def get_number_of_frames_from_binfile(filepath, endianness='<'):
+def get_number_of_frames_from_binfile(filepath, endianness="<"):
     """Reads the last 8 bytes of a binary file and converts them to a NumPy uint64.
     Args:
         filepath: The path to the binary file.
@@ -31,7 +32,9 @@ def get_number_of_frames_from_binfile(filepath, endianness='<'):
     """
     file_size = os.path.getsize(filepath)
     if file_size < 8:
-        raise ValueError("File size is less than 8 bytes. Cannot read the last 8 bytes.")
+        raise ValueError(
+            "File size is less than 8 bytes. Cannot read the last 8 bytes."
+        )
 
     with open(filepath, "rb") as f:
         f.seek(file_size - 8)

@@ -1,32 +1,45 @@
-import os
-import time
-import sys
-from PyQt5 import uic, Qt
-from PyQt5.QtWidgets import (QFileDialog, QMainWindow, QApplication, QWidget,
-                             QVBoxLayout, QHBoxLayout, QSplitter)
-from PyQt5.QtCore import QTimer
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from gpu_corr_server import GPUServer, get_system_information
+'''Module for GPU correlation server GUI. Provides classes to create and manage the server GUI interface. '''
+
 import json
-import torch
-from pyqtgraph import DataTreeWidget, ImageView
+import os
+import sys
+import time
 import traceback
-import pyqtgraph as pg
+
 import numpy as np
+import pyqtgraph as pg
+import torch
+from gpu_corr_server import GPUServer, get_system_information
+from PyQt5 import uic
+from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QStandardItem, QStandardItemModel
+from PyQt5.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QMainWindow,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
+from pyqtgraph import DataTreeWidget, ImageView
 
-pg.setConfigOption('imageAxisOrder', 'row-major')
+pg.setConfigOption("imageAxisOrder", "row-major")
 
-home_dir = os.path.join(os.path.expanduser('~'), '.xpcs_boost_server')
+home_dir = os.path.join(os.path.expanduser("~"), ".xpcs_boost_server")
 if not os.path.isdir(home_dir):
     os.mkdir(home_dir)
 
 
 class SetupPreviewer(QSplitter):
-    def __init__(self):
+    """A GUI class for setting up the previewer interface."""
+    def __init__(self) -> None:
+        """Initialize the SetupPreviewer instance."""
         super(SetupPreviewer, self).__init__()
         self.initUI()
 
-    def initUI(self):
+    def initUI(self) -> None:
+        """Initialize UI components for the previewer."""
         hbox12 = QHBoxLayout()
         self.img1 = ImageView()
         self.img2 = ImageView()
@@ -51,25 +64,27 @@ class SetupPreviewer(QSplitter):
         self.addWidget(img_widget)
 
         self.setGeometry(300, 300, 1200, 800)
-        self.setWindowTitle('Setup Previewer')
+        self.setWindowTitle("Setup Previewer")
         self.show()
 
     def set_data(self, fname, setup):
         img_hdl = (self.img1, self.img2, self.img3, self.img4)
         for hdl, key in zip(img_hdl, ("qMap", "qCMap", "qRMap", "mask")):
             hdl.setImage(setup[key])
-            text1 = pg.TextItem(text=f'{key}', color=(0, 0, 255))
+            text1 = pg.TextItem(text=f"{key}", color=(0, 0, 255))
             plot_view = hdl.getView()
             plot_view.addItem(text1)
             setup.pop(key, None)
         self.data_tree.setData(setup)
-        self.setWindowTitle(f'Setup Previewer: {fname}')
+        self.setWindowTitle(f"Setup Previewer: {fname}")
 
 
 class Ui(QMainWindow):
-    def __init__(self):
+    """Main window for the GPU correlation server GUI."""
+    def __init__(self) -> None:
+        """Initialize the Ui instance and load the UI layout."""
         super(Ui, self).__init__()
-        uic.loadUi('gpuBoostServer.ui', self)
+        uic.loadUi("gpuBoostServer.ui", self)
         self.btn_start.clicked.connect(self.start_server)
         self.btn_stop.clicked.connect(self.stop_server)
         self.home_dir = home_dir
@@ -89,18 +104,18 @@ class Ui(QMainWindow):
 
         xline = np.arange(self.load_window) * self.update_time
         self.load_xline = xline - np.max(xline)
-        self.load_plot.setBackground('w')
-        self.load_plot.setLabel('left', 'jobs/s')
-        self.load_plot.setLabel('bottom', 'Time', units='s')
-        self.load_plot.hideAxis('bottom')
+        self.load_plot.setBackground("w")
+        self.load_plot.setLabel("left", "jobs/s")
+        self.load_plot.setLabel("bottom", "Time", units="s")
+        self.load_plot.hideAxis("bottom")
         self.load_plot.setMouseEnabled(x=False, y=False)
 
         self.load_save_setting(mode="load")
         sys_info = get_system_information()
         self.model = QStandardItemModel()
-        for n in range(sys_info['num_gpus']):
-            name = sys_info['device'][n]['name']
-            label = name + f'_{n}'
+        for n in range(sys_info["num_gpus"]):
+            name = sys_info["device"][n]["name"]
+            label = name + f"_{n}"
             item = QStandardItem(label)
             item.setCheckState(True)
             item.setCheckable(True)
@@ -111,37 +126,39 @@ class Ui(QMainWindow):
 
     def select_setup_file(self, idx=1):
         if self.is_running:
-            self.statusbar.showMessage('Server is running now.', 2000)
+            self.statusbar.showMessage("Server is running now.", 2000)
             return
         assert idx in (1, 2, 3)
-        display = f'setup_fname_{idx}'
-        f = QFileDialog.getOpenFileName(self, f'select setup file {idx}')[0]
+        display = f"setup_fname_{idx}"
+        f = QFileDialog.getOpenFileName(self, f"select setup file {idx}")[0]
         if os.path.isfile(f):
             self.__dict__[display].setText(f)
         else:
-            self.statusbar.showMessage('the setup file is not valid.')
+            self.statusbar.showMessage("the setup file is not valid.")
         return
 
     def select_result_dir(self):
         if self.is_running:
-            self.statusbar.showMessage('Server is running now.', 2000)
+            self.statusbar.showMessage("Server is running now.", 2000)
             return
 
-        d = QFileDialog.getExistingDirectory(self, f'select result directory')
+        d = QFileDialog.getExistingDirectory(self, "select result directory")
         if os.path.isdir(d):
             self.result_dir.setText(d)
         else:
-            self.statusbar.showMessage('the result directory is not valid.')
+            self.statusbar.showMessage("the result directory is not valid.")
 
     def submit_jobs(self):
         if not self.is_running:
-            self.statusbar.showMessage('Server is not running. quit', 2000)
+            self.statusbar.showMessage("Server is not running. quit", 2000)
             return
 
-        flists = QFileDialog.getOpenFileName(self,
-                                             f'select raw files to reduce',
-                                             directory='/clhome/MQICHU',
-                                             filter="TXT (*.txt)")
+        flists = QFileDialog.getOpenFileName(
+            self,
+            "select raw files to reduce",
+            directory="/clhome/MQICHU",
+            filter="TXT (*.txt)",
+        )
         # filter="TIFF (*.tif);;HDF (*.h5 *.hdf)")
 
         # self.server.submit_jobs(flists[0])
@@ -158,27 +175,29 @@ class Ui(QMainWindow):
         if flag:
             self.lineEdit_8.setStyleSheet("background-color: rgb(0, 255, 0)")
             yline = jobs_info[:, 3] / self.update_time
-            self.load_plot.plot(self.load_xline,
-                                yline,
-                                fillLevel=0,
-                                clear=True,
-                                brush=(50, 50, 200, 200))
+            self.load_plot.plot(
+                self.load_xline,
+                yline,
+                fillLevel=0,
+                clear=True,
+                brush=(50, 50, 200, 200),
+            )
         else:
             self.lineEdit_8.setStyleSheet("background-color: rgb(255, 255, 0)")
-        message = str(time.asctime()) + ' | ' + message
+        message = str(time.asctime()) + " | " + message
         self.lineEdit_8.setText(message)
 
     def start_server(self):
         if self.is_running:
-            self.statusbar.showMessage('Server is running.', 1000)
+            self.statusbar.showMessage("Server is running.", 1000)
             return
 
-        self.statusbar.showMessage('Server is starting', 8000)
+        self.statusbar.showMessage("Server is starting", 8000)
 
         kwargs = {}
-        kwargs['port'] = self.port.value()
-        kwargs['output'] = self.result_dir.text()
-        kwargs['worker_per_gpu'] = 1
+        kwargs["port"] = self.port.value()
+        kwargs["output"] = self.result_dir.text()
+        kwargs["worker_per_gpu"] = 1
         self.server_kwargs = kwargs
 
         gpu_selection = []
@@ -188,56 +207,56 @@ class Ui(QMainWindow):
             gpu_selection.append(flag)
 
         if sum(gpu_selection) == 0:
-            self.statusbar.showMessage('None of the GPUs is selected', 1000)
+            self.statusbar.showMessage("None of the GPUs is selected", 1000)
             return
         else:
-            kwargs['gpu_selection'] = gpu_selection
+            kwargs["gpu_selection"] = gpu_selection
 
         try:
             self.server = GPUServer(**kwargs)
-        except Exception as e:
-            print('failed to start server')
+        except Exception:
+            print("failed to start server")
             traceback.print_exc()
 
         time.sleep(1)
         self.timer.start(int(self.update_time * 1000))
         self.is_running = True
         self.lineEdit.setText(self.server.ip_addr)
-        self.statusbar.showMessage('Server started', 1000)
+        self.statusbar.showMessage("Server started", 1000)
 
     def enable_disable_panel(self, flag=True, idx=0):
         pass
         # self.gb_det_1.setEnabled(flag)
 
     def stop_server(self):
-        self.statusbar.showMessage('Server is stopping', 8000)
+        self.statusbar.showMessage("Server is stopping", 8000)
         if self.is_running:
             self.timer.stop()
             self.server.stop_server()
             self.server = None
             self.is_running = False
         self.update_status()
-        self.statusbar.showMessage('Server stopped', 1000)
+        self.statusbar.showMessage("Server stopped", 1000)
 
-    def load_save_setting(self, mode='save'):
+    def load_save_setting(self, mode="save"):
         text_field = ["watch_pv", "watch_folder", "result_dir"]
 
         num_field = ["port"]
         assert mode in ("save", "load"), "mode not supported."
 
-        fname = os.path.join(self.home_dir, 'last_setting.json')
+        fname = os.path.join(self.home_dir, "last_setting.json")
         if mode == "save":
             kwargs = {}
             for key in text_field:
                 kwargs[key] = self.__dict__[key].text()
             for key in num_field:
                 kwargs[key] = self.__dict__[key].value()
-            with open(fname, 'w') as f:
+            with open(fname, "w") as f:
                 json.dump(kwargs, f, indent=4)
 
         elif mode == "load":
             try:
-                with open(fname, 'r') as f:
+                with open(fname, "r") as f:
                     kwargs = json.load(f)
                 for key in text_field:
                     self.__dict__[key].setText(kwargs[key])
@@ -253,8 +272,8 @@ class Ui(QMainWindow):
         super(QMainWindow, self).closeEvent(event)
 
 
-if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')
+if __name__ == "__main__":
+    torch.multiprocessing.set_start_method("spawn")
     app = QApplication(sys.argv)
     window = Ui()
     app.exec_()

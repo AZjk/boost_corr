@@ -1,10 +1,11 @@
 """Top-level package for boost-corr."""
 
 __author__ = """Miaoqi Chu"""
-__email__ = 'mqichu@anl.gov'
+__email__ = "mqichu@anl.gov"
 
 
-from pkg_resources import get_distribution, DistributionNotFound
+from pkg_resources import DistributionNotFound, get_distribution
+
 try:
     __version__ = get_distribution(__name__).version
 except DistributionNotFound:
@@ -12,11 +13,11 @@ except DistributionNotFound:
 
 
 import logging
-logging.getLogger('boost_corr').addHandler(logging.NullHandler())
+
+logging.getLogger("boost_corr").addHandler(logging.NullHandler())
 
 
-# from .multitau import MultitauCorrelator
 from boost_corr.multitau import MultitauCorrelator
-# from .twotime import TwotimeCorrelator
 from boost_corr.twotime import TwotimeCorrelator
+
 __all__ = (MultitauCorrelator, TwotimeCorrelator)

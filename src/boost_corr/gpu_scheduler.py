@@ -1,14 +1,14 @@
+import logging
 import os
-import sys
-import time
 import random
 import signal
+import sys
+import time
 from datetime import datetime
 from uuid import uuid4
-from filelock import FileLock, Timeout
-import pynvml
-import logging
 
+import pynvml
+from filelock import FileLock, Timeout
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class GPUScheduler:
         self.queue_file = os.path.join(
             self.QUEUE_DIR, f"{self.priority}_{datetime.now().timestamp()}_{uuid4()}"
         )
-        open(self.queue_file, 'w').close()  # Create an empty file
+        open(self.queue_file, "w").close()  # Create an empty file
         try_count = 0
 
         while try_count < self.max_try:
@@ -62,7 +62,9 @@ class GPUScheduler:
             if os.path.basename(self.queue_file) != queue_files[0]:
                 index = queue_files.index(os.path.basename(self.queue_file))
                 sleep_time = min(max(self.sleep_duration, 1 * index), 100)
-                logger.info(f"Current position in the queue: {index + 1}/{len(queue_files)}, sleeping for {sleep_time:.1f} seconds...")
+                logger.info(
+                    f"Current position in the queue: {index + 1}/{len(queue_files)}, sleeping for {sleep_time:.1f} seconds..."
+                )
                 time.sleep(sleep_time)
                 continue
 
@@ -85,7 +87,9 @@ class GPUScheduler:
                     continue  # GPU is in use, try next one
 
             # No GPUs were free, wait before retrying
-            logger.info(f"No GPUs are free at the moment. Retrying in {self.sleep_duration} seconds...")
+            logger.info(
+                f"No GPUs are free at the moment. Retrying in {self.sleep_duration} seconds..."
+            )
             time.sleep(self.sleep_duration)
 
         # Failed to acquire a GPU after max tries

@@ -1,10 +1,11 @@
 import logging
 import os
 import sys
+from typing import Optional
+
 import h5py
 import numpy as np
 import torch
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ key_map = {
 def find_bin_count(qmap, minlength=None):
     count = np.bincount(qmap.ravel(), minlength=minlength)[1:]
     count = count.astype(np.int32)
-    nan_idx = (count == 0)
+    nan_idx = count == 0
     count[nan_idx] = -1
     return count, nan_idx
 
@@ -28,39 +29,39 @@ def average_with_index_map(
     img: torch.Tensor,
     qmap: torch.Tensor,
     size: Optional[int] = None,
-    norm_factor: Optional[torch.Tensor] = None
+    norm_factor: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
-    Computes the cluster-wise average intensity of an image tensor based on a 
+    Computes the cluster-wise average intensity of an image tensor based on a
     quantization/segmentation map.
 
     Parameters
     ----------
     img : torch.Tensor
-        A tensor of shape (C, H, W) or (C, N) where C is the number of images 
-        (or channels), and H, W represent the height and width of the image. 
+        A tensor of shape (C, H, W) or (C, N) where C is the number of images
+        (or channels), and H, W represent the height and width of the image.
         The tensor contains pixel intensities.
     qmap : torch.Tensor
-        A tensor of shape (H, W) or (N,) containing cluster labels 
+        A tensor of shape (H, W) or (N,) containing cluster labels
         (quantization indices) for each pixel.
     size : int, optional
-        The total number of clusters (quantization levels). If not provided, 
+        The total number of clusters (quantization levels). If not provided,
         it is inferred from `qmap`.
     norm_factor : torch.Tensor, optional
-        A precomputed normalization factor for each cluster. If None, it is 
+        A precomputed normalization factor for each cluster. If None, it is
         computed based on `qmap`.
 
     Returns
     -------
     torch.Tensor
-        A tensor of shape (C, size-1) where each value represents the average 
+        A tensor of shape (C, size-1) where each value represents the average
         intensity of the corresponding cluster.
 
     Notes
     -----
-    - The function assumes `qmap` contains indices starting from 1 
+    - The function assumes `qmap` contains indices starting from 1
       (i.e., it ignores index `0`).
-    - Clusters with zero pixels are handled by setting their normalization 
+    - Clusters with zero pixels are handled by setting their normalization
       factor to `1` to avoid division by zero.
     """
     qmap = qmap.view(-1)
@@ -74,10 +75,12 @@ def average_with_index_map(
         norm_factor[norm_factor == 0] = 1  # Avoid division by zero
 
     img = img.reshape(-1, num_pixels)
-    summed_values = torch.stack([
-        torch.bincount(qmap, weights=img[n], minlength=size)[1:]
-        for n in range(img.shape[0])
-    ])
+    summed_values = torch.stack(
+        [
+            torch.bincount(qmap, weights=img[n], minlength=size)[1:]
+            for n in range(img.shape[0])
+        ]
+    )
 
     avg = summed_values.float() / norm_factor
     return avg
@@ -93,9 +96,15 @@ def convert_to_numpy(output_dict):
 
 
 class XpcsQPartitionMap(object):
-    def __init__(self, qmap_fname, flag_fix=False, flag_sort=False,
-                 dq_selection=None, masked_ratio_threshold=0.85,
-                 device='cpu') -> None:
+    def __init__(
+        self,
+        qmap_fname,
+        flag_fix=False,
+        flag_sort=False,
+        dq_selection=None,
+        masked_ratio_threshold=0.85,
+        device="cpu",
+    ) -> None:
         super().__init__()
         self.fname = qmap_fname
         self.device = device
@@ -139,16 +148,17 @@ class XpcsQPartitionMap(object):
         self.info_np = info_np
         self.info = info
         self.qinfo = qinfo
-    
+
     def describe(self):
-        logger.info(f'qmap file: {self.fname}')
-        logger.info(f'flag_sort: {self.flag_sort}')
+        logger.info(f"qmap file: {self.fname}")
+        logger.info(f"flag_sort: {self.flag_sort}")
         logger.info(
             f"masked area pixels/ratio: "
             f"{self.masked_pixels}/"
-            f"{self.masked_ratio * 100:.4f}%")
+            f"{self.masked_ratio * 100:.4f}%"
+        )
         # omit dq = 0 which is not used
-        logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}") 
+        logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}")
 
     def load(self, flag_fix=False):
         values = {}
@@ -164,27 +174,27 @@ class XpcsQPartitionMap(object):
             self.check_fix_qmap()
         self.det_size = self.mask.shape
         self.dq_dim = np.max(self.dqmap)
-        self.sq_dim = np.max(self.sqmap) 
+        self.sq_dim = np.max(self.sqmap)
         self.masked_pixels = int(np.sum(self.mask == 1))
         self.masked_ratio = self.masked_pixels / self.mask.size
 
     def update_file(self):
-        logger.warning(f'update fixed qmap in file: [{self.fname}]')
+        logger.warning(f"update fixed qmap in file: [{self.fname}]")
         # update the qmap after fixing sqmap/dqmap inconsistency
         with h5py.File(self.fname, "a") as f:
-            del f[key_map['dqmap']]
-            f[key_map['dqmap']] = self.dqmap.astype(np.uint32)
+            del f[key_map["dqmap"]]
+            f[key_map["dqmap"]] = self.dqmap.astype(np.uint32)
 
     def update_rotation(self, det_size):
         if self.dqmap.shape != det_size:
-            logger.warning(
-                "qmap is rotated 90 deg to match the detctor oriention.")
+            logger.warning("qmap is rotated 90 deg to match the detctor oriention.")
             self.dqmap = np.swapaxes(self.dqmap, 0, 1)
             self.sqmap = np.swapaxes(self.sqmap, 0, 1)
             self.mask = np.swapaxes(self.mask, 0, 1)
             self.det_size = self.mask.shape
-            assert self.det_size == det_size, \
-                    "The shape of QMap does not match the raw data shape"
+            assert (
+                self.det_size == det_size
+            ), "The shape of QMap does not match the raw data shape"
             # need redo the preprocessing
             self.group_qmap()
             return True
@@ -192,8 +202,8 @@ class XpcsQPartitionMap(object):
 
     def update_mask_crop(self, masked_ratio_threshold):
         if self.masked_ratio < masked_ratio_threshold:
-            logger.info(f"masked_ratio is too low. Apply crop-mask on the raw input.")
-            mask_crop = self.info['mask_idx_1d']
+            logger.info("masked_ratio is too low. Apply crop-mask on the raw input.")
+            mask_crop = self.info["mask_idx_1d"]
         else:
             mask_crop = None
         return mask_crop
@@ -204,11 +214,11 @@ class XpcsQPartitionMap(object):
         for sq in sq_list:
             sq_roi = self.sqmap == sq
             dq = np.sort(np.unique(self.dqmap[sq_roi]))
-            assert len(dq) in (1, 2), 'only support sqmap belongs up to 2 bins'
+            assert len(dq) in (1, 2), "only support sqmap belongs up to 2 bins"
             if len(dq) > 1:  # only works for 2
                 flag = False
                 idx_0 = np.logical_and(self.dqmap == dq[0], sq_roi)
-                logger.warning(f'qmap inconsistent at sq: {sq} <-> {dq}: dq')
+                logger.warning(f"qmap inconsistent at sq: {sq} <-> {dq}: dq")
                 if np.sum(idx_0) < len(sq_roi) // 2:
                     self.dqmap[idx_0] = dq[1]
                 else:
@@ -227,8 +237,7 @@ class XpcsQPartitionMap(object):
             dq_selection = np.unique(dqmap[dqmap > 0])
         dq_selection.sort()
 
-        info = {"dq_slc": [], "sq_slc": [], "dq_idx": [], "sq_idx": [],
-                "dq_sq_map": {}}
+        info = {"dq_slc": [], "sq_slc": [], "dq_idx": [], "sq_idx": [], "dq_sq_map": {}}
 
         q_roi = []
         dq_start = 0
@@ -238,7 +247,7 @@ class XpcsQPartitionMap(object):
             if np.sum(roi) == 0:
                 continue
             sq_list = np.sort(np.unique(sqmap[roi]))
-            info['dq_sq_map'][dq] = []
+            info["dq_sq_map"][dq] = []
 
             sq_start = dq_start
             for sq in sq_list:
@@ -246,32 +255,32 @@ class XpcsQPartitionMap(object):
                 if np.sum(sq_roi) == 0:
                     continue
                 q_roi.append(sq_roi)
-                info['sq_slc'].append(slice(sq_start, sq_start + len(sq_roi)))
-                info['sq_idx'].append(sq)
-                info['dq_sq_map'][dq].append(sq)
+                info["sq_slc"].append(slice(sq_start, sq_start + len(sq_roi)))
+                info["sq_idx"].append(sq)
+                info["dq_sq_map"][dq].append(sq)
                 sq_start += len(sq_roi)
 
-            info['dq_idx'].append(dq)
-            info['dq_slc'].append(slice(dq_start, dq_start + len(roi)))
+            info["dq_idx"].append(dq)
+            info["dq_slc"].append(slice(dq_start, dq_start + len(roi)))
             dq_start += len(roi)
             assert dq_start == sq_start, "dqmap and sqmap must be consistent"
 
         mask_idx_1d_sort = np.hstack(q_roi)
-        dq_idx = info['dq_idx']
+        dq_idx = info["dq_idx"]
         total_dq, dq_min, dq_max = len(dq_idx), min(dq_idx), max(dq_idx)
-        logger.info(f'total dq: {total_dq}. min - max: {dq_min} - {dq_max}')
+        logger.info(f"total dq: {total_dq}. min - max: {dq_min} - {dq_max}")
         return mask_idx_1d_sort, info
 
     def normalize_sqmap(self, img, flag_crop, apply_nan=True):
-        scount = self.info['scount']
+        scount = self.info["scount"]
         if flag_crop:
-            sqmap = self.info['sqmap_crop']
+            sqmap = self.info["sqmap_crop"]
         else:
-            sqmap = self.info['sqmap_full']
+            sqmap = self.info["sqmap_full"]
         result = average_with_index_map(img, sqmap, self.sq_dim + 1, scount)
 
         if apply_nan:
-            snan_idx = self.info['snan_idx']
+            snan_idx = self.info["snan_idx"]
             result = result[..., ~snan_idx]
         # result = result.cpu().numpy()
         return result
@@ -279,10 +288,8 @@ class XpcsQPartitionMap(object):
     def recover_dimension(self, saxs2d, flag_crop):
         if flag_crop:
             pixel_num = self.det_size[0] * self.det_size[1]
-            full_img = torch.zeros(pixel_num,
-                                   dtype=torch.float32,
-                                   device=saxs2d.device)
-            full_img[self.info['mask_idx_1d']] = saxs2d
+            full_img = torch.zeros(pixel_num, dtype=torch.float32, device=saxs2d.device)
+            full_img[self.info["mask_idx_1d"]] = saxs2d
         else:
             full_img = saxs2d
 
@@ -290,49 +297,45 @@ class XpcsQPartitionMap(object):
         return full_img
 
     def normalize_multitau(self, res, save_G2=False):
-        flag_crop = res['mask_crop'] is not None
+        flag_crop = res["mask_crop"] is not None
         g2, g2_err = self.compute_g2(res["G2"], flag_crop)
-        output_dir = {
-            'delay_list': res['tau'],
-            'g2': g2,
-            'g2_err': g2_err
-        }
+        output_dir = {"delay_list": res["tau"], "g2": g2, "g2_err": g2_err}
 
         if save_G2:
             G2 = res["G2"].reshape(-1, res["G2"].shape[-1])
             if flag_crop:
                 pixel_num = self.det_size[0] * self.det_size[1]
-                value = torch.zeros(G2.shape[0], pixel_num,
-                                    dtype=torch.float32,
-                                    device=G2.device)
-                value[:, self.info['mask_idx_1d']] = G2
+                value = torch.zeros(
+                    G2.shape[0], pixel_num, dtype=torch.float32, device=G2.device
+                )
+                value[:, self.info["mask_idx_1d"]] = G2
             else:
                 value = G2
 
             # the final shape of G2IPIF is (num_tau, 3, det_row, det_col)
-            output_dir['G2IPIF'] = value.reshape(-1, 3, *self.det_size)
+            output_dir["G2IPIF"] = value.reshape(-1, 3, *self.det_size)
         output_dir = convert_to_numpy(output_dir)
         return output_dir
 
     def normalize_scattering(self, res):
-        flag_crop = res['mask_crop'] is not None
+        flag_crop = res["mask_crop"] is not None
         if res["saxs_2d"].shape == self.det_size:
             flag_crop = False
         saxs1d = self.normalize_sqmap(res["saxs_2d"], flag_crop)
-        saxs2d = self.recover_dimension(res['saxs_2d'], flag_crop)
+        saxs2d = self.recover_dimension(res["saxs_2d"], flag_crop)
         saxs1d_par = self.normalize_sqmap(res["saxs_2d_par"], flag_crop)
         output_dir = {
-            'saxs_2d': saxs2d,
-            'saxs_1d': saxs1d,
-            'saxs_1d_segments': saxs1d_par,
-            'intensity_vs_time': res['intensity_vs_time'],
+            "saxs_2d": saxs2d,
+            "saxs_1d": saxs1d,
+            "saxs_1d_segments": saxs1d_par,
+            "intensity_vs_time": res["intensity_vs_time"],
         }
         output_dir = convert_to_numpy(output_dir)
         return output_dir
 
     def compute_g2(self, G2, flag_crop):
         if not flag_crop:
-            G2 = G2[..., self.info['mask_idx_1d']]
+            G2 = G2[..., self.info["mask_idx_1d"]]
         flag_crop = True
 
         IP_IF = G2[:, 1] * G2[:, 2]
@@ -349,15 +352,14 @@ class XpcsQPartitionMap(object):
         g2 = torch.zeros(G2.shape[0], self.dq_dim, device=G2.device)
         g2_err = torch.zeros_like(g2)
 
-        dqmap = self.info['dqmap_crop']
-        sqmap = self.info['sqmap_crop']
+        dqmap = self.info["dqmap_crop"]
+        sqmap = self.info["sqmap_crop"]
         for idx in range(1, self.dq_dim + 1):
-            roi_dq = (dqmap == idx)
+            roi_dq = dqmap == idx
             if torch.sum(roi_dq) == 0:
                 continue
             temp = g2_pixel[:, roi_dq]
-            g2_err[:,
-                   idx - 1] = torch.std(temp, axis=1) / np.sqrt(temp.shape[1])
+            g2_err[:, idx - 1] = torch.std(temp, axis=1) / np.sqrt(temp.shape[1])
             # the sqmap index - 1 gives the index in the G2q
             # roi = sqmap[idx_corr].long().unique() - 1
             # [1, 2, 3, 4]
@@ -368,34 +370,37 @@ class XpcsQPartitionMap(object):
 
 
 def check_and_fix_qmap(fname):
-    logging.basicConfig(level=logging.INFO, format='%(message)s')
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     qpm = XpcsQPartitionMap(fname, flag_fix=False)
     flag = qpm.check_fix_qmap()
     if not flag:
-        choise = input('update the qmap file? [Y/n] ')
-        if choise == 'Y':
+        choise = input("update the qmap file? [Y/n] ")
+        if choise == "Y":
             qpm.update_file()
     else:
         _, info = qpm.select_sort()
-        for k, v in info['dq_sq_map'].items():
-            logger.info(f'dq: {k} <-> {v}: sq')
-        logger.info(f'[{fname}] is consistent')
+        for k, v in info["dq_sq_map"].items():
+            logger.info(f"dq: {k} <-> {v}: sq")
+        logger.info(f"[{fname}] is consistent")
 
 
 def test():
     import time
+
     t0 = time.perf_counter()
     # "/scratch/xpcs_data_raw/qmap/foster202110_qmap_RubberDonut_Lq0_S180_18_D18_18.h5"
     xpm = XpcsQPartitionMap(
         "/scratch/xpcs_data_raw/qmap/qzhang20191006_qmap_Rigaku_S270_D27_log.h5",
-        device='cuda:0')
-    print('time: ', round(time.perf_counter() - t0, 3))
+        device="cuda:0",
+    )
+    print("time: ", round(time.perf_counter() - t0, 3))
     print(xpm.sqmap.shape)
     # print(np.sum(xpm.dcount))
     print(xpm.mask.dtype)
     print(xpm.masked_ratio)
     print(xpm.masked_pixels)
     import matplotlib.pyplot as plt
+
     plt.imshow(xpm.sqmap)
     plt.show()
 
@@ -404,4 +409,4 @@ if __name__ == "__main__":
     if len(sys.argv) == 2 and os.path.isfile(sys.argv[1]):
         check_and_fix_qmap(sys.argv[1])
     else:
-        print('Usage: check_fix_qmap some_qmap.hdf')
+        print("Usage: check_fix_qmap some_qmap.hdf")
