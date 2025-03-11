@@ -99,7 +99,9 @@ class XpcsQPartitionMap(object):
     def load(self, flag_fix=False):
         values = {}
         with h5py.File(self.fname, "r") as f:
+            print(key_map)
             for key, real_key in key_map.items():
+                print('loading ' + real_key)
                 values[key] = np.squeeze(f[real_key][()])
 
         self.__dict__.update(values)
