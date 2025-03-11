@@ -15,6 +15,8 @@ import logging
 logging.getLogger('boost_corr').addHandler(logging.NullHandler())
 
 
-from .multitau import MultitauCorrelator
-from .twotime import TwotimeCorrelator
+# from .multitau import MultitauCorrelator
+from boost_corr.multitau import MultitauCorrelator
+# from .twotime import TwotimeCorrelator
+from boost_corr.twotime import TwotimeCorrelator
 __all__ = (MultitauCorrelator, TwotimeCorrelator)

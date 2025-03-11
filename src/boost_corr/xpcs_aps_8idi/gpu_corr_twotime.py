@@ -5,10 +5,10 @@ import time
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from .. import TwotimeCorrelator
-from .dataset import create_dataset
-from .xpcs_qpartitionmap import XpcsQPartitionMap
-from .xpcs_result import XpcsResult
+from boost_corr.twotime import TwotimeCorrelator
+from boost_corr.xpcs_aps_8idi.dataset import create_dataset
+from boost_corr.xpcs_aps_8idi.xpcs_qpartitionmap import XpcsQPartitionMap
+from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 logger = logging.getLogger(__name__)
 

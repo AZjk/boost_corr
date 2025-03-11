@@ -1,0 +1,11 @@
+[run]
+branch = True
+source =
+    src/boost_corr
+omit =
+    */__init__.py
+    tests/*
+
+[report]
+show_missing = True
+skip_covered = True

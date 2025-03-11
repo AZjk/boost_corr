@@ -5,8 +5,8 @@ import shutil
 import traceback
 import h5py
 
-from .append_metadata_qmap import append_metadata_qmap
-from .hdf_reader import put_results_in_hdf5
+from boost_corr.xpcs_aps_8idi.append_metadata_qmap import append_metadata_qmap
+from boost_corr.xpcs_aps_8idi.hdf_reader import put_results_in_hdf5
 
 logger = logging.getLogger(__name__)
 

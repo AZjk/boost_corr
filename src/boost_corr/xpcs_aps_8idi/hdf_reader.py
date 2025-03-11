@@ -6,7 +6,8 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-from .aps_8idi import key as hdf_key
+# from .aps_8idi import key as hdf_key
+from boost_corr.xpcs_aps_8idi.aps_8idi import key as hdf_key
 
 
 def put_results_in_hdf5(save_path, result, compression=None):
