@@ -1,4 +1,3 @@
-==========
 boost-corr
 ==========
 
@@ -14,22 +13,22 @@ Installation (updated on 02/28/2022)
 * create new virtual environment use conda. Python version is specified here because the pytorch package only supports python 3.7-3.9. You can also use "python -m venv" or "virtualenv" to create a virutal enviroment.
 
 	YOUR_ENV_NAME=boost_corr_test
-        conda create -n YOUR_ENV_NAME python=3.9 
+        conda create -n YOUR_ENV_NAME python=3.9
 
 * activate your new environment
-        
+
         conda activate YOUR_ENV_NAME
 
 * install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/), for example:
-	
+
         conda install pytorch==1.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
 
 
 * clone and install boost-corr
-        
+
         git clone git@github.com:AZjk/boost_corr.git
         cd boost_corr
-        pip install . -e 
+        pip install . -e
 
 
 Usage
@@ -40,9 +39,9 @@ Usage
         boost_corr -t Twotime -i -1 -r /data/xpcs8/2022-1/leheny202202/A056_Ludox15_att00_L2M_quiescent_001/A056_Ludox15_att00_L2M_quiescent_001_001..h5 -q /data/xpcs8/partitionMapLibrary/2022-1/leheny202202_qmap_2M_Test_S360_D60_A009.h5 -o /scratch -s sqmap -v -avg_frame 3 -dq "1-60"
 
 * * Multitau correlation example, using the first GPU, stride of 3 frames and average every 3 frames.
-    
+
         boost_corr -t Multitau -i 0 -r /scratch/xpcs_data_raw/A005_Dragonite_25p_Quiescent_att0_Lq0_001/ A005_Dragonite_25p_Quiescent_att0_Lq0_001_00001-20000.imm --qmap /scratch/xpcs_data_raw/qmap/harden201912_qmap_Dragonite_Lq0_S270_D54.h5 --output /scratch --verbose -stride_frame 3 -avg_frame 7
-    
+
 * * Full list
 
 ```
@@ -78,7 +77,7 @@ Usage
  --dryrun, -dr         dryrun: only show the argument without execution.
  --overwrite, -ow      whether to overwrite the existing result file.
  -c CONFIG.JSON, --config CONFIG.JSON
-                         configuration file to be used. if the same key is passed as an argument, the value in the configure file will be omitted.      
+                         configuration file to be used. if the same key is passed as an argument, the value in the configure file will be omitted.
 ```
 
 
@@ -109,17 +108,3 @@ for n in range(frame_num):
 mc.post_process()
 result = mc.get_results()
 ```
-
-
-Features
---------
-
-* TODO
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage

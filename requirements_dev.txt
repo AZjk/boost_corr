@@ -1,9 +1,0 @@
-h5py
-hdf5plugin
-python-magic
-matplotlib
-numpy
-psutil
-scikit-image
-tqdm
-torch>=1.10
