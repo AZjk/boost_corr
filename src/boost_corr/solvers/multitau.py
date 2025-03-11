@@ -44,6 +44,7 @@ def compute_queue(levels_num, queue_size, queue_level):
 
 
 class MultitauCorrelator(object):
+<<<<<<< HEAD:src/boost_corr/solvers/multitau.py
     def __init__(
         self,
         det_size,
@@ -56,6 +57,19 @@ class MultitauCorrelator(object):
         max_memory=32.0,
         max_count=7,
     ) -> None:
+=======
+    def __init__(self,
+                 det_size,
+                 frame_num,
+                 device='cpu',
+                 queue_size: int = 64,
+                 queue_level: int = 4,
+                 auto_queue=True,
+                 mask_crop=None,
+                 max_memory=36.0,
+                 max_count=7) -> None:
+
+>>>>>>> 8f447fd767a5c7c182539a09654c813ad8d4d873:boost_corr/multitau.py
         self.det_size = det_size
         self.is_sparse = False
         self.max_memory = max_memory
@@ -107,7 +121,7 @@ class MultitauCorrelator(object):
             # print(self.dtype_list[n])
 
         # account for the overflow photons
-        self.ct_overflow = 0
+        self.ct_overflow = torch.zeros(size=(self.pixel_num,), device=self.device)
 
         # G2, IP and IF
         self.g2 = torch.zeros(
@@ -127,7 +141,7 @@ class MultitauCorrelator(object):
 
         # self.intt = torch.zeros(size=(frame_num, 2), dtype=torch.float32)
         self.intt = []
-        self.saxs_2d = None
+        self.saxs_2d = torch.zeros_like(self.ct_overflow)
         self.saxs_2d_par = []
 
         self.levels = levels
@@ -140,7 +154,12 @@ class MultitauCorrelator(object):
         dlist_uniq = list(set(dlist))
         dlist_uniq.sort()
         for x in dlist_uniq:
+<<<<<<< HEAD:src/boost_corr/solvers/multitau.py
             logger.info(f"stage @ {dlist.count(x):02d}: {x}")
+=======
+            logger.info(f'stage @ {dlist.count(x):02d}: {x}')
+        logger.info(f'max_memory is {self.max_memory}GB')
+>>>>>>> 8f447fd767a5c7c182539a09654c813ad8d4d873:boost_corr/multitau.py
 
     def reset(self):
         for n in range(self.levels_num):
@@ -251,6 +270,13 @@ class MultitauCorrelator(object):
         if end - beg <= 0:
             return None
 
+        if level == 0:
+            # sl = slice(self.current_frame - end + beg, self.current_frame)
+            intt = torch.mean(self.ct[level][beg:end].float(), dim=1)
+            self.intt.append(intt)
+            self.saxs_2d += torch.sum(self.ct[level][beg:end].float(), dim=0)
+            self.ct[level][beg:end] /= intt.reshape(end - beg, 1)
+
         for tau, tid, _ in self.tau_in_level[level]:
             sl1 = slice(beg - tau, end - tau)
             sl2 = slice(beg, end)
@@ -273,10 +299,6 @@ class MultitauCorrelator(object):
 
         if level == self.par_level:
             self.saxs_2d_par.append(self.ct[level][beg:end].clone().detach())
-
-        if level == 0:
-            # sl = slice(self.current_frame - end + beg, self.current_frame)
-            self.intt.append(torch.mean(self.ct[level][beg:end].float(), dim=1))
 
         # the number of elements should be an even number for all; but the
         # last call can be an odd number; advance the event; the left element
@@ -311,7 +333,8 @@ class MultitauCorrelator(object):
                 self.g2[tid, 1:3] /= eff_length * 2**level
 
         # get saxs2d
-        self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        # self.saxs_2d = torch.unsqueeze(tot / self.frame_num, 0)
+        self.saxs_2d /= self.frame_num
         if len(self.saxs_2d_par) > 0:
             self.saxs_2d_par = torch.vstack(self.saxs_2d_par) / self.frame_num
         else:
@@ -351,6 +374,7 @@ class MultitauCorrelator(object):
         tline = torch.arange(intt.shape[0], device=intt.device)
         intt = torch.vstack([tline, intt])
 
+<<<<<<< HEAD:src/boost_corr/solvers/multitau.py
         output_dir = {
             "intt": intt.float(),
             "saxs2d": self.saxs_2d.float(),
@@ -358,9 +382,21 @@ class MultitauCorrelator(object):
             "G2": self.g2.float(),
             "mask_crop": self.mask_crop,
             "tau": self.tau_bin[0, :],
+=======
+        output_scattering = {
+            'saxs_2d': self.saxs_2d.float(),
+            'saxs_2d_par': self.saxs_2d_par.float(),
+            'intensity_vs_time': intt.float(),
+            'mask_crop': self.mask_crop,
         }
 
-        return output_dir
+        output_multitau = {
+            'G2': self.g2.float(),
+            'mask_crop': self.mask_crop,
+            'tau': self.tau_bin[0, :]
+>>>>>>> 8f447fd767a5c7c182539a09654c813ad8d4d873:boost_corr/multitau.py
+        }
+        return output_scattering, output_multitau
 
 
 def read_data(
