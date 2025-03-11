@@ -10,7 +10,7 @@ import unittest
 
 import h5py
 
-from boost_corr.xpcs_aps_8idi.xpcs_result import get_metadata, is_metadata
+from boost_corr.loader.xpcs_result import get_metadata, is_metadata
 
 
 class TestBoost_corr(unittest.TestCase):

@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from boost_corr.help_functions import gen_tau_bin, is_power_two, nonzero_crop
+from boost_corr.utils.help_functions import gen_tau_bin, is_power_two, nonzero_crop
 
 
 class test_xpcs_functions(unittest.TestCase):

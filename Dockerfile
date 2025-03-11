@@ -2,7 +2,7 @@
 FROM docker.io/continuumio/miniconda3
 
 # Install Python 3.11, tomopy, dxchange, and matplotlib from conda-forge.
-RUN conda install -y -c conda-forge python=3.11 tomopy dxchange matplotlib && \
+RUN conda install -y -c conda-forge python=3.11 matplotlib && \
     conda clean -afy
 
 # Install globus-compute-sdk via pip.

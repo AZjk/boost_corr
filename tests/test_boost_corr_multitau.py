@@ -13,7 +13,7 @@ import pytest
 import torch
 
 from boost_corr import MultitauCorrelator
-from boost_corr.help_functions import gen_tau_bin
+from boost_corr.utils.help_functions import gen_tau_bin
 
 
 def run_and_get_result(

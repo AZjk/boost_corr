@@ -10,8 +10,16 @@ requires-python = ">=3.9.1"
 readme = "README.md"
 license = {text = "MIT"}
 dependencies = [
+    "h5py",
+    "hdf5plugin",
+    "python-magic",
+    "matplotlib",
     "numpy>=1.21.0",
     "scipy>=1.7.0",
+    "psutil",
+    "scikit-image",
+    "tqdm",
+    "torch>=1.10",
 ]
 
 [project.optional-dependencies]
@@ -155,4 +163,3 @@ plugins = ["pydantic.mypy"]
 strict = true
 disallow_untyped_defs = true
 implicit_reexport = true
-
