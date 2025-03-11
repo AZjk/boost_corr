@@ -1,3 +1,5 @@
+"""Module for appending metadata to qmap files.\nThis module provides functions to update and append metadata for qmap.\n"""
+
 import shutil
 import sys
 

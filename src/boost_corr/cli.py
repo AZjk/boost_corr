@@ -1,3 +1,8 @@
+"""Module for the command line interface for boost_corr.
+This module provides command line parsing and execution functionality.
+TODO: Add detailed documentation.
+"""
+
 import argparse
 import json
 import logging
@@ -222,7 +227,12 @@ if args.config is not None:
 kwargs["dq_selection"] = convert_to_list(kwargs["dq_selection"])
 
 
-def main():
+def main() -> None:
+    """Main function to execute the command line interface.
+
+    Returns:
+        None
+    """
     flag = 0
     if kwargs["dry_run"]:
         ans = "dry_run_only"

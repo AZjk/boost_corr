@@ -1,10 +1,15 @@
+"""Module for handling Rigaku datasets in the xpcs_aps_8idi dataset.
+This module provides functionality to process Rigaku 64bit binary data.
+TODO: Add detailed documentation.
+"""
+
 import logging
 
 import numpy as np
 import torch
 
-from .help_functions import convert_sparse
-from .xpcs_dataset import XpcsDataset
+from boost_corr.xpcs_aps_8idi.dataset.help_functions import convert_sparse
+from boost_corr.xpcs_aps_8idi.dataset.xpcs_dataset import XpcsDataset
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +23,14 @@ class RigakuDataset(XpcsDataset):
     """
 
     def __init__(self, *args, dtype=np.uint8, total_frames=None, **kwargs):
+        """Initialize the RigakuDataset.
+
+        Parameters:
+            *args: Additional positional arguments.
+            dtype: Data type for reading the data.
+            total_frames: Total number of frames (optional).
+            **kwargs: Additional keyword arguments.
+        """
         super(RigakuDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Rigaku 64bit Binary"
         self.is_sparse = True
@@ -26,12 +39,25 @@ class RigakuDataset(XpcsDataset):
         self.ifc = self.to_device()
 
     def to_device(self):
+        """Transfer internal data to the specified device and return processed tensors.
+
+        Returns:
+            Tuple containing tensors for index, frame, and count.
+        """
         index = torch.tensor(self.ifc[0].astype(np.int32), device=self.device)
         frame = torch.tensor(self.ifc[1].astype(np.int32), device=self.device)
         count = torch.tensor(self.ifc[2].astype(np.uint8), device=self.device)
         return (index, frame, count)
 
     def read_data(self, total_frames=None):
+        """Read data from the file and return it.
+
+        Parameters:
+            total_frames: (Optional) Total number of frames to read.
+
+        Returns:
+            Tuple containing the data and other related information.
+        """
         with open(self.fname, "r") as f:
             a = np.fromfile(f, dtype=np.uint64)
             d = convert_sparse(a)
@@ -57,6 +83,14 @@ class RigakuDataset(XpcsDataset):
         return (index, frame, count), mem_addr
 
     def __getbatch__(self, idx):
+        """Retrieve a batch of data from the file.
+
+        Parameters:
+            idx: Batch index.
+
+        Returns:
+            Batch data.
+        """
         # frame begin and end
         beg, end, size = self.get_raw_index(idx)
         x = torch.zeros(size, self.pixel_num, dtype=torch.uint8, device=self.device)
@@ -77,13 +111,8 @@ class RigakuDataset(XpcsDataset):
 
 
 def test():
-    fname = (
-        "/home/beams/MQICHU/ramdisk/O018_Silica_D100_att0_Rq0_00001/"
-        "O018_Silica_D100_att0_Rq0_00001.bin"
-    )
-    ds = RigakuDataset(fname)
-    # for n in range(len(ds)):
-    #     print(n, ds[n].shape)
+    """Test function for the RigakuDataset functionality."""
+    _ = RigakuDataset()
 
 
 if __name__ == "__main__":

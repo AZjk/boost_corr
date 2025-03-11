@@ -46,8 +46,18 @@ def get_system_information():
 
 
 class TableDataModel(QtCore.QAbstractTableModel):
+    """TODO: Add docstring for TableDataModel class.
+
+    This class represents a table model used in the GPU correlation GUI.
+    """
+
     def __init__(self, input_list=None, max_display=16384) -> None:
-        """Initialize TableDataModel with an optional input list and maximum display."""
+        """TODO: Add docstring for __init__ method.
+
+        Parameters:
+            input_list (list, optional): Initial list of items. Defaults to None.
+            max_display (int, optional): Maximum number of items to display. Defaults to 16384.
+        """
         super().__init__()
         if input_list is None:
             self.input_list = []
@@ -65,59 +75,144 @@ class TableDataModel(QtCore.QAbstractTableModel):
             "fname",
         ]
 
-    # overwrite parent method
     def data(self, index, role):
+        """TODO: Add docstring for data method.
+
+        Parameters:
+            index: QModelIndex for the data.
+            role: Role for data retrieval.
+
+        Returns:
+            Any: Data corresponding to the given index and role.
+        """
         if role == QtCore.Qt.DisplayRole:
             x = self.input_list[len(self.input_list) - 1 - index.row()]
             ret = x.get_data()
             return ret[index.column()]
+        return None
 
-    # overwrite parent method
     def rowCount(self, index):
+        """TODO: Add docstring for rowCount method.
+
+        Parameters:
+            index: Parent QModelIndex (unused).
+
+        Returns:
+            int: Number of rows, limited by max_display.
+        """
         return min(self.max_display, len(self.input_list))
 
-    # overwrite parent method
     def columnCount(self, index):
+        """TODO: Add docstring for columnCount method.
+
+        Parameters:
+            index: Parent QModelIndex (unused).
+
+        Returns:
+            int: Number of columns determined by xlabels length.
+        """
         return len(self.xlabels)
 
     def headerData(self, section, orientation, role):
+        """TODO: Add docstring for headerData method.
+
+        Parameters:
+            section: Section index.
+            orientation: Orientation (horizontal/vertical).
+            role: Role for header data retrieval.
+
+        Returns:
+            Any: Header information if applicable, otherwise None.
+        """
         if role == QtCore.Qt.DisplayRole:
             if orientation == QtCore.Qt.Horizontal:
                 return self.xlabels[section]
+        return None
 
     def extend(self, new_input_list):
+        """TODO: Add docstring for extend method.
+
+        Parameters:
+            new_input_list (list): List of items to extend the model with.
+        """
         self.input_list.extend(new_input_list)
         self.layoutChanged.emit()
 
     def append(self, new_item):
+        """TODO: Add docstring for append method.
+
+        Parameters:
+            new_item: Single item to append to the model.
+        """
         self.input_list.append(new_item)
         self.layoutChanged.emit()
 
     def replace(self, new_input_list):
+        """TODO: Add docstring for replace method.
+
+        Parameters:
+            new_input_list (list): New list of items to replace the current model data.
+        """
         self.input_list.clear()
         self.extend(new_input_list)
 
     def pop(self, index):
+        """TODO: Add docstring for pop method.
+
+        Parameters:
+            index (int): Index of the item to remove from the model.
+        """
         if 0 <= index < self.__len__():
             self.input_list.pop(index)
             self.layoutChanged.emit()
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """TODO: Add docstring for __len__ magic method.
+
+        Returns:
+            int: The number of items in the model.
+        """
         return len(self.input_list)
 
     def __getitem__(self, i):
+        """TODO: Add docstring for __getitem__ magic method.
+
+        Parameters:
+            i (int): Index of the item to retrieve.
+
+        Returns:
+            Any: The item at the given index.
+        """
         return self.input_list[i]
 
     def copy(self):
+        """TODO: Add docstring for copy method.
+
+        Returns:
+            list: A shallow copy of the model's input list.
+        """
         return self.input_list.copy()
 
     def remove(self, x):
+        """TODO: Add docstring for remove method.
+
+        Parameters:
+            x: The item to remove from the model.
+        """
         self.input_list.remove(x)
 
     def clear(self):
+        """TODO: Add docstring for clear method.
+
+        Clears all items from the model's input list.
+        """
         self.input_list.clear()
 
     def emit(self):
+        """TODO: Add docstring for emit method.
+
+        Emits the layoutChanged signal to update the view.
+        """
         self.layoutChanged.emit()
 
 

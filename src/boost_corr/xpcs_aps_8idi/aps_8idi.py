@@ -1,3 +1,8 @@
+"""Module for APS 8idi functionalities.
+This module provides core functionalities for APS 8idi operations.
+TODO: Add detailed documentation.
+"""
+
 key = {
     "delay_list": "/xpcs/multitau/delay_list",
     "g2": "/xpcs/multitau/normalized_g2",

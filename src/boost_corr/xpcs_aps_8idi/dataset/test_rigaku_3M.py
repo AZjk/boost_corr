@@ -1,3 +1,8 @@
+"""Module tests for Rigaku dataset (3M).
+
+This module contains tests for the Rigaku dataset handling functionality.
+"""
+
 from boost_corr.xpcs_aps_8idi.rigaku_3M_handler import Rigaku3MDataset
 
 fname = "/home/8ididata/Rigaku3M_Test_Data/SparsificationData2/Div1_000001.bin.000"

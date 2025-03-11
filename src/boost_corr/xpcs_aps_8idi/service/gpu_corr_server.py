@@ -1,3 +1,8 @@
+"""Module for GPU correlation server service in xpcs_aps_8idi.
+This module provides classes and functions to manage GPU-based correlation jobs.
+TODO: Add detailed documentation.
+"""
+
 import argparse
 import logging
 import os
@@ -10,12 +15,13 @@ import magic
 import numpy as np
 import torch
 import zmq
-from hdf_handler import HdfDataset
-from imm_handler import ImmDataset
-from rigaku_handler import RigakuDataset
-from xpcs_boost import XpcsBoost as XB
-from xpcs_qpartitionmap import XpcsQPartitionMap
-from xpcs_result import XpcsResult
+
+from boost_corr.xpcs_aps_8idi.dataset.hdf_handler import HdfDataset
+from boost_corr.xpcs_aps_8idi.dataset.imm_handler import ImmDataset
+from boost_corr.xpcs_aps_8idi.dataset.rigaku_handler import RigakuDataset
+from boost_corr.xpcs_aps_8idi.xpcs_boost import XpcsBoost as XB
+from boost_corr.xpcs_aps_8idi.xpcs_qpartitionmap import XpcsQPartitionMap
+from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,6 +31,11 @@ logging.basicConfig(
 
 
 def get_system_information():
+    """TODO: Add docstring for get_system_information.
+
+    Returns:
+        dict: System information (e.g., number of GPUs).
+    """
     sys_info = {}
     sys_info["num_gpus"] = torch.cuda.device_count()
     # sys_info['num_cpus'] = psutil.cpu_count(logical=False)
@@ -45,7 +56,19 @@ def get_system_information():
 
 
 class GPUWorker(Process):
+    """TODO: Add docstring for GPUWorker class.
+
+    This class represents a worker that processes GPU correlation jobs.
+    """
+
     def __init__(self, device, worker_id, job_queue) -> None:
+        """TODO: Add docstring for GPUWorker.__init__.
+
+        Parameters:
+            device: The processing device.
+            worker_id: Unique identifier for the worker.
+            job_queue: Queue of jobs.
+        """
         super(GPUWorker, self).__init__()
         self.xb = None
         self.qpm = None
@@ -56,6 +79,9 @@ class GPUWorker(Process):
         self.logger.info(f"worker initialized, {self.device}")
 
     def run(self):
+        """TODO: Add docstring for GPUWorker.run.
+        Process the assigned GPU job.
+        """
         # print('worker started', self.worker_id)
         while True:
             try:
@@ -88,6 +114,10 @@ class GPUWorker(Process):
         verbose=False,
         masked_ratio_threshold=0.75,
     ):
+        """TODO: Add docstring for GPUWorker.process.
+
+        Process the GPU job.
+        """
         meta_dir = os.path.dirname(raw)
         if not os.path.isdir(output):
             os.makedirs(output)
@@ -148,11 +178,7 @@ class GPUWorker(Process):
         else:
             self.xb.reset()
 
-        t_start = time.perf_counter()
         self.xb.process_dataset(dset, verbose=verbose, use_loader=use_loader)
-        t_end = time.perf_counter()
-        t_diff = t_end - t_start
-        # frequency = dset.frame_num / t_diff
         result = self.xb.get_results()
         result = self.qpm.normalize_data(result)
         result_file.save(result)
@@ -160,7 +186,20 @@ class GPUWorker(Process):
 
 
 class GPUProducer(Process):
+    """TODO: Add docstring for GPUProducer class.
+
+    This class produces GPU jobs and manages the job queue.
+    """
+
     def __init__(self, port, job_queue, num_workers, num_jobs):
+        """TODO: Add docstring for GPUProducer.__init__.
+
+        Parameters:
+            port: Port number to listen on.
+            job_queue: Queue for jobs.
+            num_workers: Number of worker processes.
+            num_jobs: Total number of jobs.
+        """
         super(GPUProducer, self).__init__()
         self.cid = "producer_00"
         self.logger = logging.getLogger(f"[{self.cid}]")
@@ -170,6 +209,9 @@ class GPUProducer(Process):
         self.port = port
 
     def run(self):
+        """TODO: Add docstring for GPUProducer.run.
+        Start producing and submitting GPU jobs.
+        """
         self.logger.info(f"producer initialized, listen {self.port}")
         context = zmq.Context()
         p_socket = context.socket(zmq.PAIR)
@@ -199,6 +241,11 @@ CACHE_SIZE = 1024
 
 
 class GPUServer:
+    """TODO: Add docstring for GPUServer class.
+
+    This class sets up and runs the GPU correlation server.
+    """
+
     def __init__(
         self,
         port=5555,
@@ -206,6 +253,14 @@ class GPUServer:
         gpu_selection=None,
         worker_per_gpu=1,
     ) -> None:
+        """TODO: Add docstring for GPUServer.__init__.
+
+        Parameters:
+            port (int): Port number for the server.
+            output (str): Output directory for result files.
+            gpu_selection (list): List of booleans indicating which GPUs to use.
+            worker_per_gpu (int): Number of workers per GPU.
+        """
         self.port = port
         self.ip_addr = str(socket.gethostbyname(socket.gethostname()))
         self.output_dir = output
@@ -239,6 +294,14 @@ class GPUServer:
         self.job_ptr = CACHE_SIZE
 
     def get_status(self, window):
+        """TODO: Add docstring for GPUServer.get_status.
+
+        Parameters:
+            window: Status window size or context.
+
+        Returns:
+            tuple: (Flag, message, jobs information).
+        """
         status = "Active: "
         num_jobs = self.num_jobs.value
         try:
@@ -263,6 +326,9 @@ class GPUServer:
             return False, "Inactive: " + str(e), None
 
     def stop_server(self):
+        """TODO: Add docstring for GPUServer.stop_server.
+        Stop the server gracefully.
+        """
         # empty the job queue
         try:
             while True:
@@ -278,10 +344,16 @@ class GPUServer:
         socket = context.socket(zmq.PAIR)
         socket.connect(f"tcp://{self.ip_addr}:{self.port}")
         socket.send_json({"cmd": "quit"})
-        for n, x in enumerate(self.p_pool):
+        for _n, x in enumerate(self.p_pool):
             x.join()
 
     def submit_jobs(self, flist):
+        """TODO: Add docstring for GPUServer.submit_jobs.
+        Submit jobs from the given file list.
+
+        Parameters:
+            flist: List of job file paths.
+        """
         context = zmq.Context()
         socket = context.socket(zmq.PAIR)
         socket.connect(f"tcp://{self.ip_addr}:{self.port}")
@@ -306,6 +378,12 @@ class GPUServer:
             # time.sleep(0.001)
 
     def process_all_files(self, fname="/clhome/MQICHU/filelist2.txt"):
+        """TODO: Add docstring for GPUServer.process_all_files.
+        Process all files listed in the given file.
+
+        Parameters:
+            fname (str): Path to the file list.
+        """
         flist = []
         with open(fname) as f:
             for line in f:

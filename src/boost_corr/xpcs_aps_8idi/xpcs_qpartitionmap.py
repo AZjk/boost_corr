@@ -1,3 +1,8 @@
+"""Module for XPCS QPartition Map.
+This module provides functionality for processing Q maps in XPCS analysis.
+TODO: Add detailed documentation.
+"""
+
 import logging
 import os
 import sys
@@ -18,6 +23,15 @@ key_map = {
 
 
 def find_bin_count(qmap, minlength=None):
+    """TODO: Add docstring for find_bin_count.
+
+    Parameters:
+        qmap: Input Q map data.
+        minlength: Minimum length for binning.
+
+    Returns:
+        numpy.ndarray: Array of bin counts.
+    """
     count = np.bincount(qmap.ravel(), minlength=minlength)[1:]
     count = count.astype(np.int32)
     nan_idx = count == 0
@@ -87,6 +101,14 @@ def average_with_index_map(
 
 
 def convert_to_numpy(output_dict):
+    """TODO: Add docstring for convert_to_numpy.
+
+    Parameters:
+        output_dict: Dictionary containing output data.
+
+    Returns:
+        dict: Dictionary with numpy arrays converted from tensors, if any.
+    """
     for k, v in output_dict.items():
         if isinstance(v, torch.Tensor):
             output_dict[k] = v.float().cpu().numpy()
@@ -96,6 +118,11 @@ def convert_to_numpy(output_dict):
 
 
 class XpcsQPartitionMap(object):
+    """TODO: Add docstring for XpcsQPartitionMap class.
+
+    This class handles partitioning and processing of Q maps for XPCS analysis.
+    """
+
     def __init__(
         self,
         qmap_fname,
@@ -105,6 +132,16 @@ class XpcsQPartitionMap(object):
         masked_ratio_threshold=0.85,
         device="cpu",
     ) -> None:
+        """TODO: Add docstring for __init__ method.
+
+        Parameters:
+            qmap_fname: Filename of the Q map.
+            flag_fix (bool): Whether to attempt automatic fixes.
+            flag_sort (bool): Whether to sort the Q map.
+            dq_selection: Optional selection criteria for grouping.
+            masked_ratio_threshold: Threshold to decide mask cropping.
+            device: Device to use for processing.
+        """
         super().__init__()
         self.fname = qmap_fname
         self.device = device
@@ -123,6 +160,14 @@ class XpcsQPartitionMap(object):
         self.mask_crop = self.update_mask_crop(masked_ratio_threshold)
 
     def group_qmap(self, dq_selection=None):
+        """TODO: Add docstring for group_qmap method.
+
+        Parameters:
+            dq_selection: Optional selection criteria for grouping.
+
+        Returns:
+            Any: Grouped Q map data (placeholder).
+        """
         scount, snan_idx = find_bin_count(self.sqmap, self.sq_dim + 1)
         if self.flag_sort:
             # select and sort the qmap; good for twotime and multitau
@@ -150,6 +195,10 @@ class XpcsQPartitionMap(object):
         self.qinfo = qinfo
 
     def describe(self):
+        """TODO: Add docstring for describe method.
+
+        Returns a description of the Q map properties.
+        """
         logger.info(f"qmap file: {self.fname}")
         logger.info(f"flag_sort: {self.flag_sort}")
         logger.info(
@@ -161,6 +210,14 @@ class XpcsQPartitionMap(object):
         logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}")
 
     def load(self, flag_fix=False):
+        """TODO: Add docstring for load method.
+
+        Parameters:
+            flag_fix (bool): Flag to indicate if fixes should be applied.
+
+        Returns:
+            dict: Loaded Q map data.
+        """
         values = {}
         with h5py.File(self.fname, "r") as f:
             for key, real_key in key_map.items():
@@ -179,6 +236,10 @@ class XpcsQPartitionMap(object):
         self.masked_ratio = self.masked_pixels / self.mask.size
 
     def update_file(self):
+        """TODO: Add docstring for update_file method.
+
+        Updates the Q map file after applying fixes.
+        """
         logger.warning(f"update fixed qmap in file: [{self.fname}]")
         # update the qmap after fixing sqmap/dqmap inconsistency
         with h5py.File(self.fname, "a") as f:
@@ -186,6 +247,11 @@ class XpcsQPartitionMap(object):
             f[key_map["dqmap"]] = self.dqmap.astype(np.uint32)
 
     def update_rotation(self, det_size):
+        """TODO: Add docstring for update_rotation method.
+
+        Parameters:
+            det_size: Detector size to adjust rotation if needed.
+        """
         if self.dqmap.shape != det_size:
             logger.warning("qmap is rotated 90 deg to match the detctor oriention.")
             self.dqmap = np.swapaxes(self.dqmap, 0, 1)
@@ -201,6 +267,11 @@ class XpcsQPartitionMap(object):
         return False
 
     def update_mask_crop(self, masked_ratio_threshold):
+        """TODO: Add docstring for update_mask_crop method.
+
+        Parameters:
+            masked_ratio_threshold: Threshold to decide mask cropping.
+        """
         if self.masked_ratio < masked_ratio_threshold:
             logger.info("masked_ratio is too low. Apply crop-mask on the raw input.")
             mask_crop = self.info["mask_idx_1d"]
@@ -209,6 +280,11 @@ class XpcsQPartitionMap(object):
         return mask_crop
 
     def check_fix_qmap(self):
+        """TODO: Add docstring for check_fix_qmap method.
+
+        Returns:
+            bool: True if Q map was fixed, else False.
+        """
         flag = True
         sq_list = np.sort(np.unique(self.sqmap[self.sqmap > 0]))
         for sq in sq_list:
@@ -272,6 +348,16 @@ class XpcsQPartitionMap(object):
         return mask_idx_1d_sort, info
 
     def normalize_sqmap(self, img, flag_crop, apply_nan=True):
+        """TODO: Add docstring for normalize_sqmap method.
+
+        Parameters:
+            img: Input image data.
+            flag_crop (bool): Whether cropping is applied.
+            apply_nan (bool): Whether to apply NaN conversion.
+
+        Returns:
+            Any: Normalized SQ map (placeholder).
+        """
         scount = self.info["scount"]
         if flag_crop:
             sqmap = self.info["sqmap_crop"]
@@ -286,6 +372,15 @@ class XpcsQPartitionMap(object):
         return result
 
     def recover_dimension(self, saxs2d, flag_crop):
+        """TODO: Add docstring for recover_dimension method.
+
+        Parameters:
+            saxs2d: SAXS 2D data.
+            flag_crop (bool): Whether cropping is applied.
+
+        Returns:
+            Any: Data with recovered dimensions (placeholder).
+        """
         if flag_crop:
             pixel_num = self.det_size[0] * self.det_size[1]
             full_img = torch.zeros(pixel_num, dtype=torch.float32, device=saxs2d.device)
@@ -297,6 +392,15 @@ class XpcsQPartitionMap(object):
         return full_img
 
     def normalize_multitau(self, res, save_G2=False):
+        """TODO: Add docstring for normalize_multitau method.
+
+        Parameters:
+            res: Result dictionary from multitau correlation.
+            save_G2 (bool): Flag to decide whether to save G2 data.
+
+        Returns:
+            Any: Normalized multitau results (placeholder).
+        """
         flag_crop = res["mask_crop"] is not None
         g2, g2_err = self.compute_g2(res["G2"], flag_crop)
         output_dir = {"delay_list": res["tau"], "g2": g2, "g2_err": g2_err}
@@ -318,6 +422,14 @@ class XpcsQPartitionMap(object):
         return output_dir
 
     def normalize_scattering(self, res):
+        """TODO: Add docstring for normalize_scattering method.
+
+        Parameters:
+            res: Input scattering data.
+
+        Returns:
+            Any: Normalized scattering result (placeholder).
+        """
         flag_crop = res["mask_crop"] is not None
         if res["saxs_2d"].shape == self.det_size:
             flag_crop = False
@@ -334,6 +446,15 @@ class XpcsQPartitionMap(object):
         return output_dir
 
     def compute_g2(self, G2, flag_crop):
+        """TODO: Add docstring for compute_g2 method.
+
+        Parameters:
+            G2: Input g2 data.
+            flag_crop (bool): Whether cropping is applied.
+
+        Returns:
+            tuple: Computed g2 and associated error (placeholder).
+        """
         if not flag_crop:
             G2 = G2[..., self.info["mask_idx_1d"]]
         flag_crop = True
@@ -370,6 +491,14 @@ class XpcsQPartitionMap(object):
 
 
 def check_and_fix_qmap(fname):
+    """TODO: Add docstring for check_and_fix_qmap function.
+
+    Parameters:
+        fname: Filename of the Q map to check.
+
+    Returns:
+        Any: Status of the fixing process (placeholder).
+    """
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     qpm = XpcsQPartitionMap(fname, flag_fix=False)
     flag = qpm.check_fix_qmap()
@@ -385,6 +514,10 @@ def check_and_fix_qmap(fname):
 
 
 def test():
+    """TODO: Add docstring for test function.
+
+    Runs self-tests for Q map functionality.
+    """
     import time
 
     t0 = time.perf_counter()

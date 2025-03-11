@@ -1,3 +1,7 @@
+"""Module for comparing correlation results.
+TODO: Add detailed documentation.
+"""
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np

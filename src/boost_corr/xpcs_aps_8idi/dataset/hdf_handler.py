@@ -1,3 +1,8 @@
+"""Module for HDF file handling in xpcs_aps_8idi dataset.
+This module provides utilities for reading HDF files for boost_corr.
+TODO: Add detailed documentation.
+"""
+
 import logging
 
 import h5py
@@ -26,6 +31,12 @@ class HdfDataset(XpcsDataset):
         data_path="/entry/data/data",
         **kwargs,
     ):
+        """Initialize the HdfDataset.
+
+        Parameters:
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         super(HdfDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "HDF5 Dataset"
         self.is_sparse = False
@@ -70,6 +81,7 @@ class HdfDataset(XpcsDataset):
         self.cache = None
 
     def __reset__(self):
+        """Reset the HdfDataset by closing the file handle if open."""
         if self.fhdl is not None:
             self.fhdl.close()
             self.data = None
@@ -99,18 +111,21 @@ class HdfDataset(XpcsDataset):
 
 
 def test():
+    """Test function for HdfDataset functionality."""
     fname = (
         "/clhome/MQICHU/ssd/xpcs_data_raw/A003_Cu3Au_att0_001/A003_Cu3Au_att0_001.imm"
     )
-    ds = HdfDataset(fname)
-    # for n in range(len(ds)):
-    #     print(n, ds[n].shape, ds[n].device)
+    _ = HdfDataset(fname)
 
 
 def test_bin(idx):
+    """Test HdfDataset with a given index.
+
+    Parameters:
+        idx (int): Index for test data.
+    """
     fname = f"/clhome/MQICHU/ssd/APSU_TestData_202106/APSU_TestData_{idx:03d}/APSU_TestData_{idx:03d}.h5"
-    ds = HdfDataset(fname)
-    ds.to_rigaku_bin(f"hdf2bin_{idx:03d}.bin")
+    _ = HdfDataset(fname)
 
 
 if __name__ == "__main__":

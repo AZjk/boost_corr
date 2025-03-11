@@ -1,5 +1,9 @@
+"""Module for multitau correlation analysis.
+This module provides functions and classes for performing multitau correlation analysis.
+TODO: Add detailed documentation.
+"""
+
 import logging
-import os
 import time
 
 import numpy as np
@@ -16,6 +20,15 @@ logger = logging.getLogger(__name__)
 
 
 def compute_dtype(max_count, levels):
+    """Compute the appropriate data type for accumulation based on max_count and levels.
+
+    Parameters:
+        max_count (int): Maximum photon count.
+        levels: Levels configuration.
+
+    Returns:
+        Appropriate data type.
+    """
     # get the dtype that can hold the accumulation of photons without losing
     # precision
     dtype_list = [
@@ -37,6 +50,16 @@ def compute_dtype(max_count, levels):
 
 
 def compute_queue(levels_num, queue_size, queue_level):
+    """Compute the queue parameters based on levels, queue size, and queue level.
+
+    Parameters:
+        levels_num (int): Number of levels.
+        queue_size (int): Size of the queue.
+        queue_level (int): Queue level.
+
+    Returns:
+        Tuple: Computed queue size and level.
+    """
     x = np.arange(levels_num, dtype=np.int64)
     y = queue_size // (2 ** (x // queue_level))
     y[y < 8] = 8
@@ -44,6 +67,8 @@ def compute_queue(levels_num, queue_size, queue_level):
 
 
 class MultitauCorrelator(object):
+    """Class for performing multitau correlation analysis."""
+
     def __init__(
         self,
         det_size,
@@ -56,6 +81,13 @@ class MultitauCorrelator(object):
         max_memory=36.0,
         max_count=7,
     ) -> None:
+        """Initialize the MultitauCorrelator.
+
+        Parameters:
+            det_size: Detector size.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         self.det_size = det_size
         self.is_sparse = False
         self.max_memory = max_memory
@@ -135,6 +167,7 @@ class MultitauCorrelator(object):
         self.current_frame = 0
 
     def describe(self):
+        """Log or print the dataset description."""
         logger.info(f"queue information (auto, size, level): {self.queue_info}")
         dlist = [str(self.dtype_list[n][0]) for n in range(len(self.dtype_list))]
         dlist_uniq = list(set(dlist))
@@ -144,6 +177,7 @@ class MultitauCorrelator(object):
         logger.info(f"max_memory is {self.max_memory}GB")
 
     def reset(self):
+        """Reset the internal state of the correlator."""
         for n in range(self.levels_num):
             self.ct[n].zero_()
 
@@ -163,6 +197,12 @@ class MultitauCorrelator(object):
         self.current_frame = 0
 
     def auto_set_queue(self, min_queue_size, overhead=0.25):
+        """Automatically set the queue parameters.
+
+        Parameters:
+            min_queue_size: Minimum queue size.
+            overhead (float): Overhead factor.
+        """
         # the size of each frame in all levels;
         sz = np.zeros(self.levels_num)
         for n in range(self.levels_num):
@@ -194,6 +234,7 @@ class MultitauCorrelator(object):
         return queue_size, queue_level
 
     def process_numpy(self, *args):
+        """Process numpy input data."""
         if not self.is_sparse:
             y = torch.from_numpy(args[0]).to(self.device)
             self.__process_dense__(y)
@@ -205,17 +246,20 @@ class MultitauCorrelator(object):
             self.__process_sparse__(index, frame, count, size)
 
     def process(self, *args):
+        """Process input data."""
         if not self.is_sparse:
             self.__process_dense__(*args)
         else:
             self.__process_sparse__(*args)
 
     def __process_sparse__(self, index, frame, count, size):
+        """Internal method to process sparse input data."""
         x = torch.zeros((size, self.pixel_num), count.dtype, device=self.device)
         x[frame.long(), index.long()] = count
         self.__process_dense__(x)
 
     def __process_dense__(self, x=None):
+        """Internal method to process dense input data."""
         # convert raw input (likely uint16) to float
         # prefer to pass an input with size of 1/N queue size
         # x = x.float()
@@ -246,6 +290,7 @@ class MultitauCorrelator(object):
                     return
 
     def flush_level(self, level, last_flag):
+        """Flush the data for a given level."""
         beg = self.tau_rev
         end = self.pt[level]
         # when the channel has nothing;
@@ -300,6 +345,7 @@ class MultitauCorrelator(object):
         return x
 
     def post_process(self):
+        """Perform post-processing on the computed data."""
         # rescale the average and add total flux to IP and IF
         tot = self.ct_overflow
         for level in np.flip(self.levels):
@@ -324,6 +370,7 @@ class MultitauCorrelator(object):
         return
 
     def process_dataset(self, ds, verbose=True, use_loader=False, num_workers=16):
+        """Process the dataset with optional verbosity and concurrency."""
         if not use_loader:
             xrange = trange if verbose else range
             for n in xrange(len(ds)):
@@ -352,6 +399,7 @@ class MultitauCorrelator(object):
         self.post_process()
 
     def get_results(self):
+        """Retrieve the results of the correlation computation."""
         intt = torch.hstack(self.intt).float()
         tline = torch.arange(intt.shape[0], device=intt.device)
         intt = torch.vstack([tline, intt])
@@ -374,6 +422,15 @@ class MultitauCorrelator(object):
 def read_data(
     det_size, fname="../xpcs_data_simulation/simulation_0010k_sparse_0.005.bin"
 ):
+    """Read data from a binary file.
+
+    Parameters:
+        det_size: Detector size.
+        fname (str): File name.
+
+    Returns:
+        Parsed data.
+    """
     det_size_1d = det_size[0] * det_size[1]
     data = np.fromfile(fname, dtype=np.uint16)
     data = data.astype(np.int16)
@@ -386,10 +443,16 @@ def example(
     fname="simulation_0010k_sparse_0.005.hdf",
     data_dir="../xpcs_data_simulation",
 ):
-    path = os.path.join(data_dir, fname)
-    # detector = XpcsDetector(path)
-    # data, frame_num = read_data(det_size=(512, 512))
-    # data = torch.tensor(data, device='cuda:0')
+    """Example function demonstrating multitau correlation process.
+
+    Parameters:
+        queue_size (int): Size of the queue.
+        fname (str): File name.
+        data_dir (str): Directory of the data.
+
+    Returns:
+        None
+    """
     batch_size = queue_size
     # det_size = (1024, 512)
     det_size = (1813, 1558)
@@ -418,6 +481,7 @@ def example(
 
 
 def test_dtype():
+    """Test the data type computation functionality."""
     levels = list(np.arange(32))
     max_count = 1
     compute_dtype(max_count, levels)

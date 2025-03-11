@@ -16,6 +16,20 @@ from boost_corr.xpcs_aps_8idi.dataset.rigaku_handler import RigakuDataset
 def create_dataset(
     raw_fname, device, mask_crop, avg_frame, begin_frame, end_frame, stride_frame
 ):
+    """TODO: Add docstring for create_dataset.
+
+    Parameters:
+        raw_fname: Raw filename.
+        device: Device identifier.
+        mask_crop: Mask or crop flag.
+        avg_frame: Average frame parameter.
+        begin_frame: Starting frame index.
+        end_frame: Ending frame index.
+        stride_frame: Frame stride value.
+
+    Returns:
+        Dataset: Created dataset instance (placeholder).
+    """
     if not os.path.isfile(raw_fname):
         raise FileNotFoundError(f"The raw_file '{raw_fname}' does not exist.")
 

@@ -1,3 +1,8 @@
+"""Module for performance tests on the correlation solvers.
+This module provides functions to benchmark CPU and GPU performance.
+TODO: Add detailed documentation.
+"""
+
 import logging
 import time
 
@@ -17,7 +22,15 @@ logger = logging.getLogger(__name__)
 device = "cuda:0"
 
 
-def test(queue_size=128):
+def test(queue_size: int = 128) -> None:
+    """Test CPU performance of the correlation solver using the provided queue size.
+
+    Parameters:
+        queue_size (int): The size of the queue to use for the performance test.
+
+    Returns:
+        None
+    """
     batch_size = queue_size
     # det_size = (1024, 512)
     det_size = (516, 1556)
@@ -46,7 +59,15 @@ def test(queue_size=128):
     return
 
 
-def test_host_gpu(queue_size=1):
+def test_host_gpu(queue_size: int = 1) -> None:
+    """Test GPU performance of the correlation solver using the provided queue size.
+
+    Parameters:
+        queue_size (int): The queue size for the GPU performance test.
+
+    Returns:
+        None
+    """
     batch_size = queue_size
     # det_size = (1024, 512)
     # det_size = (516, 1556)

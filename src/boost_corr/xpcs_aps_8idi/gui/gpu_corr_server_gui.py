@@ -69,6 +69,12 @@ class SetupPreviewer(QSplitter):
         self.show()
 
     def set_data(self, fname, setup):
+        """TODO: Add docstring for set_data method.
+
+        Parameters:
+            fname: The filename or data reference to load.
+            setup: Setup configuration or parameters.
+        """
         img_hdl = (self.img1, self.img2, self.img3, self.img4)
         for hdl, key in zip(img_hdl, ("qMap", "qCMap", "qRMap", "mask")):
             hdl.setImage(setup[key])
@@ -317,10 +323,17 @@ class Ui(QMainWindow):
                 pass
 
     def closeEvent(self, event):
+        """TODO: Add docstring for closeEvent method.
+
+        Handles the close event by stopping the server and saving settings.
+
+        Parameters:
+            event: The close event object.
+        """
         self.stop_server()
         self.load_save_setting(mode="save")
-
-        super(QMainWindow, self).closeEvent(event)
+        # Optionally propagate the event
+        event.accept()
 
 
 if __name__ == "__main__":

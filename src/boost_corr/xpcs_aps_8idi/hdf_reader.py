@@ -1,6 +1,7 @@
-"""TODO: Add module-level docstring for hdf_reader.
+"""Module for HDF file reading utilities.
 
-This module provides utilities for reading HDF files for boost_corr.
+This module provides functions to read and extract data from HDF files used in boost_corr.
+TODO: Add more detailed documentation if necessary.
 """
 
 import logging
@@ -9,10 +10,9 @@ import traceback
 import h5py
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
-# from .aps_8idi import key as hdf_key
 from boost_corr.xpcs_aps_8idi.aps_8idi import key as hdf_key
+
+logger = logging.getLogger(__name__)
 
 
 def put_results_in_hdf5(save_path, result, compression=None):

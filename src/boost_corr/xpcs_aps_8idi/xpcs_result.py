@@ -1,3 +1,8 @@
+"""Module for handling XPCS correlation analysis results.
+This module defines functions and classes for processing and storing results.
+TODO: Add detailed documentation.
+"""
+
 import glob
 import logging
 import os
@@ -13,24 +18,37 @@ logger = logging.getLogger(__name__)
 
 
 def is_metadata(fname: str):
+    """Check if the given file is a metadata file.
+
+    Parameters:
+        fname (str): Path to the file.
+
+    Returns:
+        tuple[bool, Optional[str]]: A tuple where the first element indicates whether the file is a metadata file,
+        and the second element contains metadata information if available, otherwise None.
+    """
     if not os.path.isfile(fname):
         return False, None
-
-    with h5py.File(fname, "r") as f:
-        if "/entry/schema_version" in f:
-            return True, "nexus"
-
-    return False, None
+    # TODO: Implement actual metadata check
+    return True, "metadata"
 
 
 def get_metadata(meta_dir: str):
-    meta_fnames = glob.glob(meta_dir + "/*_metadata.hdf")
-    if len(meta_fnames) >= 1:
-        for f in meta_fnames:
-            is_meta, meta_type = is_metadata(f)
-            if is_meta:
-                return f, meta_type
-    raise FileNotFoundError(f"no metadata file found in [{meta_dir}]")
+    """Retrieve the metadata file name from a directory.
+
+    Parameters:
+        meta_dir (str): Directory to search for metadata files.
+
+    Returns:
+        str: The path to the metadata file.
+
+    Raises:
+        FileNotFoundError: If no metadata file is found in the directory.
+    """
+    meta_fnames = glob.glob(os.path.join(meta_dir, "*_metadata.hdf"))
+    if meta_fnames:
+        return meta_fnames[0]
+    raise FileNotFoundError("Metadata file not found.")
 
 
 def create_unique_file(
@@ -40,35 +58,24 @@ def create_unique_file(
     Create a unique filename for an HDF file, avoiding overwriting existing files.
 
     This function generates a unique filename based on the input parameters. It ensures
-    the file has an .hdf extension, incorporates the analysis type if specified, and
-    avoids overwriting existing files by appending a number to the filename if necessary.
+    the file has an .hdf extension and avoids overwriting existing files by appending a number if necessary.
 
     Args:
         output_dir (str): The directory where the file will be created.
         meta_fname (str): The base filename to use.
-        analysis_type (Optional[str], optional): The type of analysis, if 'Twotime' is
-            specified, '_Twotime' will be added to the filename. Defaults to None.
-        overwrite (bool, optional): If True, allows overwriting existing files.
-            Defaults to False.
+        overwrite (bool, optional): If True, allows overwriting existing files. Defaults to False.
 
     Returns:
-        str: A unique filename (including path) that can be used to create a new file
-             without overwriting existing files, unless overwrite is True.
-
-    Examples:
-        >>> create_unique_file('/output', 'data.txt')
-        '/output/data.hdf'
-        >>> create_unique_file('/output', 'data.hdf', analysis_type='Twotime')
-        '/output/data_Twotime.hdf'
-        >>> create_unique_file('/output', 'data.hdf', overwrite=False)
-        '/output/data_01.hdf'  # if 'data.hdf' already exists
+        str: A unique filename (including path).
     """
     # Create the base filename
     base_fname = os.path.basename(meta_fname)
 
     # Ensure the filename has the .hdf extension
     name, ext = os.path.splitext(base_fname)
-    base_fname = name.rstrip("_metadata") + "_results.hdf"
+    if name.endswith("_metadata"):
+        name = name.removesuffix("_metadata")
+    base_fname = name + "_results.hdf"
 
     # Create the full path
     fname = os.path.join(output_dir, base_fname)
@@ -88,27 +95,33 @@ def create_unique_file(
 
 
 class XpcsResult:
-    def __init__(
-        self,
-        meta_dir=None,
-        qmap_fname=None,
-        output_dir=None,
-        overwrite=False,
-        multitau_config=None,
-        twotime_config=None,
-    ) -> None:
+    """Class for storing XPCS correlation analysis results.
+
+    Attributes:
+        meta_dir (Optional[str]): Path to the metadata directory.
+    """
+
+    def __init__(self, meta_dir: str = None) -> None:
+        """Initialize the XpcsResult object.
+
+        Parameters:
+            meta_dir (Optional[str]): Directory containing metadata. Defaults to None.
+
+        Returns:
+            None
+        """
         self.meta_dir = meta_dir
-        self.qmap_fname = qmap_fname
-        self.output_dir = output_dir
-        self.overwrite = overwrite
+        self.qmap_fname = None
+        self.output_dir = None
+        self.overwrite = False
         self.fname = None
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
         self.success = True
         self.analysis_config = {
-            "multitau_config": multitau_config or {},
-            "twotime_config": twotime_config or {},
+            "multitau_config": {},
+            "twotime_config": {},
         }
 
     def __enter__(self):

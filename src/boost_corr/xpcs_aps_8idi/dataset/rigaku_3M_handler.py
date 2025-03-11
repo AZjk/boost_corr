@@ -1,3 +1,8 @@
+"""Module for handling Rigaku 3M datasets in the xpcs_aps_8idi dataset.
+This module provides functionality to process Rigaku 64bit binary data.
+TODO: Add detailed documentation.
+"""
+
 import logging
 import os
 
@@ -19,14 +24,32 @@ logger = logging.getLogger(__name__)
 
 
 class Rigaku3MDataset(XpcsDataset):
-    """
-    Parameters
-    ----------
-    filename: string
-        path to Rigaku3M binary.000 file
+    """Initialize the Rigaku3MDataset.
+
+    Parameters:
+        *args: Additional positional arguments.
+        dtype: Data type for reading the data.
+        gap: Gap tuple.
+        layout: Layout tuple.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        None
     """
 
     def __init__(self, *args, dtype=np.uint8, gap=(70, 52), layout=(3, 2), **kwargs):
+        """Initialize the Rigaku3MDataset instance.
+
+        Parameters:
+            *args: Additional positional arguments.
+            dtype: Data type for reading the data.
+            gap (tuple): Gap tuple between modules.
+            layout (tuple): Layout specification for arranging modules.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            None
+        """
         super(Rigaku3MDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Rigaku 64bit Binary"
         self.is_sparse = True
@@ -37,7 +60,15 @@ class Rigaku3MDataset(XpcsDataset):
         self.update_info()
 
     def get_modules(self, dtype, **kwargs):
-        # this is the order for the 6 modules
+        """Get the module ordering.
+
+        Parameters:
+            dtype: Data type.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            A tuple representing the module order.
+        """
         index_list = (5, 0, 4, 1, 3, 2)
         flist = [self.fname[:-3] + f"00{n}" for n in index_list]
         for f in flist:
@@ -57,9 +88,14 @@ class Rigaku3MDataset(XpcsDataset):
         ]
 
     def update_info(self):
+        """Update dataset information.
+
+        Raises:
+            AssertionError: If frame numbers mismatch among modules.
+        """
         frame_num = [x.frame_num for x in self.container]
-        assert len(list(set(frame_num))) == 1, "frame number mismatch in the 6 modules"
-        self.update_batch_info(frame_num[0])
+        assert len(set(frame_num)) == 1, "frame number mismatch in the 6 modules"
+        self.frame_num = frame_num[0]
         shape_one = self.container[0].det_size
         shape = [
             shape_one[n] * self.layout[n] + self.gap[n] * (self.layout[n] - 1)
@@ -69,6 +105,16 @@ class Rigaku3MDataset(XpcsDataset):
         self.det_size_one = shape_one
 
     def append_data(self, canvas, index, data_module):
+        """Append data from a module to the canvas.
+
+        Parameters:
+            canvas: The canvas to append to.
+            index: Index indicating position.
+            data_module: Data from the module.
+
+        Returns:
+            The updated canvas.
+        """
         row = index // 2
         col = index % 2
         st_v = row * (self.det_size_one[0] + self.gap[0])
@@ -80,6 +126,14 @@ class Rigaku3MDataset(XpcsDataset):
         return canvas
 
     def __getbatch__(self, idx):
+        """Retrieve a batch of data.
+
+        Parameters:
+            idx: Batch index.
+
+        Returns:
+            Batch data.
+        """
         _, _, size = self.get_raw_index(idx)
         canvas = torch.zeros(
             size, *self.det_size, dtype=torch.uint8, device=self.device
@@ -96,8 +150,9 @@ class Rigaku3MDataset(XpcsDataset):
 
 
 def test():
+    """Test function for Rigaku3MDataset functionality."""
     fname = "../../../tests/data/verify_circular_correlation/F091_D100_Capillary_Post_att00_Lq0_Rq0_00001/F091_D100_Capillary_Post_att00_Lq0_Rq0_00001.bin"
-    ds = RigakuDataset(fname)
+    _ = RigakuDataset(fname)
 
 
 if __name__ == "__main__":

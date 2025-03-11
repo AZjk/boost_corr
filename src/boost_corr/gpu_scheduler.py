@@ -1,3 +1,8 @@
+"""Module for GPU scheduling.
+This module provides the GPUScheduler class for managing GPU resources.
+TODO: Add detailed documentation.
+"""
+
 import logging
 import os
 import random
@@ -14,12 +19,26 @@ logger = logging.getLogger(__name__)
 
 
 class GPUScheduler:
+    """Class to manage GPU scheduling and resource allocation.
+
+    TODO: Add detailed documentation.
+    """
+
     LOCK_DIR = "/dev/shm/gpu_locks"
     QUEUE_DIR = "/dev/shm/gpu_queue"
     os.makedirs(LOCK_DIR, exist_ok=True)
     os.makedirs(QUEUE_DIR, exist_ok=True)
 
-    def __init__(self, max_try=1000, sleep_duration=3, priority=5):
+    def __init__(
+        self, max_try: int = 1000, sleep_duration: int = 3, priority: int = 5
+    ) -> None:
+        """Initialize GPUScheduler.
+
+        Parameters:
+            max_try (int): Maximum number of tries to acquire GPU.
+            sleep_duration (int): Sleep duration between tries.
+            priority (int): Priority level.
+        """
         self.max_try = max_try
         self.sleep_duration = sleep_duration
         self.priority = priority  # Lower number means higher priority
@@ -30,7 +49,12 @@ class GPUScheduler:
         self.interrupted = False
         self.original_sigint_handler = None
 
-    def __enter__(self):
+    def __enter__(self) -> "GPUScheduler":
+        """Enter the runtime context and initialize NVML.
+
+        Returns:
+            GPUScheduler: self
+        """
         # Initialize NVML
         pynvml.nvmlInit()
 
@@ -96,7 +120,17 @@ class GPUScheduler:
         self._cleanup()
         raise Exception(f"Failed to acquire a GPU after {self.max_try} attempts.")
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Exit the runtime context and restore original signal handler.
+
+        Parameters:
+            exc_type: Exception type.
+            exc_value: Exception value.
+            traceback: Exception traceback.
+
+        Returns:
+            None
+        """
         # Restore original signal handler
         signal.signal(signal.SIGINT, self.original_sigint_handler)
 

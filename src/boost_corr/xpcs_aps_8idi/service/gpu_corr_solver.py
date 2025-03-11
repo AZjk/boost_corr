@@ -1,3 +1,7 @@
+"""Module for GPU correlation solver.
+This module contains functions for checking metadata, extracting raw metadata, and solving GPU correlation.
+"""
+
 import logging
 import os
 import queue
@@ -12,6 +16,8 @@ from PyQt5 import QtCore
 from torch.utils.data import DataLoader
 from xpcs_boost import XpcsBoost as XB
 
+# from torch.profiler import profile, record_function, ProfilerActivity
+# from .aps_8idi import key as hdf_key
 # from .hdf_handler import HdfDataset
 from boost_corr.xpcs_aps_8idi.dataset.hdf_handler import HdfDataset
 
@@ -24,9 +30,6 @@ from boost_corr.xpcs_aps_8idi.dataset.rigaku_handler import RigakuDataset
 # from .xpcs_metadata import XpcsMetaData
 from boost_corr.xpcs_aps_8idi.service.xpcs_metadata import XpcsMetaData
 
-# from torch.profiler import profile, record_function, ProfilerActivity
-
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
@@ -36,7 +39,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def is_metadata(fname):
+def is_metadata(fname: str):
+    """TODO: Add docstring for is_metadata.
+
+    Parameters:
+        fname (str): The filename to check.
+
+    Returns:
+        bool: True if the file is metadata, otherwise False.
+    """
     try:
         with h5py.File(fname, "r") as f:
             return "/hdf_metadata_version" in f
@@ -44,7 +55,15 @@ def is_metadata(fname):
         return False
 
 
-def get_raw_meta(raw_folder):
+def get_raw_meta(raw_folder: str):
+    """TODO: Add docstring for get_raw_meta.
+
+    Parameters:
+        raw_folder (str): The folder containing raw data.
+
+    Returns:
+        tuple: A tuple containing raw and metadata file information.
+    """
     fs_pure = os.listdir(raw_folder)
     fs = [os.path.join(raw_folder, x) for x in fs_pure]
     raw = None
@@ -79,6 +98,29 @@ def solve(
     max_memory=12.0,
     **kwargs,
 ):
+    """TODO: Add docstring for solve.
+
+    Parameters:
+        qmap: Qmap file or identifier.
+        raw_folder: Folder with raw data files.
+        output (str): Output directory for results.
+        batch_size (int): Batch size for processing.
+        gpu_id (int): GPU identifier. Use -1 for CPU.
+        verbose (bool): Verbose flag.
+        masked_ratio_threshold (float): Threshold for mask ratio.
+        data_begin_todo: Starting data index.
+        data_end_todo: Ending data index.
+        avg_frames (int): Number of frames to average.
+        stride_frames (int): Frame stride.
+        signal_progress: Signal for progress updates.
+        config (dict): Configuration dictionary.
+        num_worker (int): Number of worker threads for PyTorch.
+        max_memory (float): Maximum memory allocation in GB.
+        **kwargs: Additional parameters.
+
+    Returns:
+        None
+    """
     torch.set_num_threads(num_worker)
     raw, meta = get_raw_meta(raw_folder)
     meta_dir = raw_folder
@@ -118,16 +160,12 @@ def solve(
     ext = os.path.splitext(raw)[-1]
     # use_loader is set for HDF files, it can use multiple processes to read
     # large HDF file;
-    use_loader = False
     if ext == ".bin":
         dataset_method = RigakuDataset
-        num_workers = 0
-        # use_loader = True
     elif ext in [".imm", ".h5", ".hdf"]:
         ftype = magic.from_file(raw)
         if ftype == "Hierarchical Data Format (version 5) data":
             dataset_method = HdfDataset
-            use_loader = True
         else:
             dataset_method = ImmDataset
 
@@ -195,15 +233,31 @@ def solve(
 
 
 class WorkerSignal(QtCore.QObject):
+    """TODO: Add docstring for WorkerSignal class.
+
+    This class defines the signals used by GPU solver workers.
+    """
+
     progress = QtCore.pyqtSignal(tuple)
     values = QtCore.pyqtSignal(tuple)
     status = QtCore.pyqtSignal(tuple)
 
 
 class GPUSolverWorker(QtCore.QRunnable):
-    def __init__(self, jid=0, raw_folder=None, **kwargs):
-        super(GPUSolverWorker, self).__init__()
+    """TODO: Add docstring for GPUSolverWorker class.
 
+    This class represents a worker for GPU solving tasks.
+    """
+
+    def __init__(self, jid=0, raw_folder=None, **kwargs):
+        """TODO: Add docstring for GPUSolverWorker.__init__.
+
+        Parameters:
+            jid: Job id (unique identifier for the job).
+            raw_folder: Folder containing raw data files.
+            **kwargs: Additional parameters.
+        """
+        super(GPUSolverWorker, self).__init__()
         self.signals = WorkerSignal()
         if jid is None:
             self.jid = str(uuid.uuid4())
@@ -223,6 +277,11 @@ class GPUSolverWorker(QtCore.QRunnable):
         self.config.update(self.kwargs)
 
     def get_data(self):
+        """TODO: Add docstring for GPUSolverWorker.get_data.
+
+        Returns:
+            list: A list containing key job configuration data.
+        """
         result = []
         for key in [
             "jid",
@@ -234,11 +293,14 @@ class GPUSolverWorker(QtCore.QRunnable):
             "time",
             "fname",
         ]:
-            result.append(self.config[key])
+            result.append(self.config.get(key))
         return result
 
     @QtCore.pyqtSlot()
     def run(self):
+        """TODO: Add docstring for GPUSolverWorker.run.
+        Process the solving task and update job status.
+        """
         self.config["status"] = "running"
         try:
             solve(
@@ -254,29 +316,62 @@ class GPUSolverWorker(QtCore.QRunnable):
 
 
 class GPUSolverProducer:
+    """TODO: Add docstring for GPUSolverProducer class.
+
+    This class manages the submission of GPU solver jobs.
+    """
+
     def __init__(self) -> None:
-        # self.thread_pool = thread_pool
+        """TODO: Add docstring for GPUSolverProducer.__init__.
+        Initializes the job queue and job history.
+        """
         self.job_queue = queue.Queue()
         self.job_history = []
 
     def submit_job(self, new_kwargs):
+        """TODO: Add docstring for submit_job method.
+        Submits a new job to the job queue.
+
+        Parameters:
+            new_kwargs: Dictionary of job parameters.
+        """
         self.job_queue.put(new_kwargs)
         self.job_history.append(new_kwargs)
 
     def get_data(self):
+        """TODO: Add docstring for get_data method.
+        Retrieves job data for all submitted jobs.
+
+        Returns:
+            list: List of job data.
+        """
         result = []
         for key in ["jid", "status", "frame_num", "progress", "fname"]:
-            result.append(self.config[key])
+            result.append(self.config.get(key))
         return result
 
 
 class GPUSolverConsumer(QtCore.QRunnable):
+    """TODO: Add docstring for GPUSolverConsumer class.
+
+    This class consumes jobs from the queue and processes them using a thread pool.
+    """
+
     def __init__(self, thread_pool, job_queue) -> None:
+        """TODO: Add docstring for GPUSolverConsumer.__init__.
+
+        Parameters:
+            thread_pool: The thread pool to run jobs.
+            job_queue: Queue containing job parameters.
+        """
         super(GPUSolverConsumer, self).__init__()
         self.thread_pool = thread_pool
         self.job_queue = job_queue
 
     def run(self):
+        """TODO: Add docstring for GPUSolverConsumer.run.
+        Continuously consumes and processes jobs from the job queue.
+        """
         while True:
             print("before get")
             kwargs = self.job_queue.get()

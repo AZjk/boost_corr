@@ -1,3 +1,9 @@
+"""Module for Nexus XPCS result schema.
+
+This module defines the schema for XPCS results in Nexus format.
+TODO: Add detailed documentation and type annotations where necessary.
+"""
+
 import numpy as np
 
 nexus_xpcs_schema = {

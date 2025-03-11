@@ -1,3 +1,9 @@
+"""Module for GPU twotime correlation.
+
+This module implements the two-time correlation solver and related functions.
+TODO: Add detailed documentation for each function.
+"""
+
 import logging
 import os
 import time

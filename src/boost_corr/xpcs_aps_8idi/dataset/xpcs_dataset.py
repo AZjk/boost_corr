@@ -1,3 +1,8 @@
+"""Module for XPCS Dataset.
+This module provides functionalities to handle XPCS datasets.
+TODO: Complete detailed documentation.
+"""
+
 import logging
 import os
 
@@ -31,6 +36,21 @@ class XpcsDataset(object):
         dtype=np.uint8,
         mask_crop=None,
     ):
+        """TODO: Add docstring for __init__.
+
+        Parameters:
+            fname: The filename of the dataset.
+            begin_frame: Start frame for dataset.
+            end_frame: End frame for dataset.
+            stride_frame: Frame stride for dataset.
+            avg_frame: Average frame for dataset.
+            batch_size: Batch size for dataset.
+            det_size: Detector size tuple.
+            device: Device for dataset.
+            use_loader: Use loader for dataset.
+            dtype: Data type for dataset.
+            mask_crop: Mask crop for dataset.
+        """
         self.fname = fname
         self.raw_size = os.path.getsize(fname) / (1024**2)
         self.det_size = det_size
@@ -55,7 +75,12 @@ class XpcsDataset(object):
         self.dataset_type = None
         self.dtype_raw = None
 
-    def update_batch_info(self, frame_num):
+    def update_batch_info(self, frame_num) -> None:
+        """TODO: Add docstring for update_batch_info method.
+
+        Parameters:
+            frame_num: Number of frames in the dataset.
+        """
         self.frame_num_raw = frame_num
         if self.end_frame <= 0:
             self.end_frame = frame_num
@@ -71,7 +96,12 @@ class XpcsDataset(object):
         self.frame_num = tot // eff_len
         self.batch_num = (self.frame_num + self.batch_size - 1) // self.batch_size
 
-    def update_mask_crop(self, new_mask):
+    def update_mask_crop(self, new_mask) -> None:
+        """TODO: Add docstring for update_mask_crop method.
+
+        Parameters:
+            new_mask: New mask to apply.
+        """
         # some times the qmap's orientation is different from the dataset;
         # after rorating qmap, explicitly apply the new mask; if the original
         # mask is None (ie. not croping), then abort
@@ -80,11 +110,24 @@ class XpcsDataset(object):
         else:
             self.mask_crop = new_mask
 
-    def update_det_size(self, det_size):
+    def update_det_size(self, det_size) -> None:
+        """TODO: Add docstring for update_det_size method.
+
+        Parameters:
+            det_size: Detector size tuple.
+        """
         self.det_size = det_size
         self.pixel_num = self.det_size[0] * self.det_size[1]
 
-    def get_raw_index(self, idx):
+    def get_raw_index(self, idx) -> any:
+        """TODO: Add docstring for get_raw_index method.
+
+        Parameters:
+            idx: Index for retrieving raw data.
+
+        Returns:
+            any: The raw index value(s).
+        """
         # get the raw index list
         eff_len = self.stride * self.avg_frame * self.batch_size
         beg = self.begin_frame + eff_len * idx
@@ -92,14 +135,24 @@ class XpcsDataset(object):
         size = (end - beg) // self.stride
         return beg, end, size
 
-    def get_sparsity(self):
+    def get_sparsity(self) -> float:
+        """TODO: Add docstring for get_sparsity method.
+
+        Returns:
+            float: Sparsity ratio of the dataset.
+        """
         x = self.__getitem__(0)[0]
         y = (x > 0).sum() / self.pixel_num
         self.dtype_raw = x.dtype
         self.__reset__()
         return y
 
-    def get_description(self):
+    def get_description(self) -> dict:
+        """TODO: Add docstring for get_description method.
+
+        Returns:
+            dict: Description of the dataset parameters.
+        """
         result = {}
         for key in [
             "fname",
@@ -120,7 +173,11 @@ class XpcsDataset(object):
         )
         return result
 
-    def describe(self):
+    def describe(self) -> None:
+        """TODO: Add docstring for describe method.
+
+        Logs or prints the dataset description.
+        """
         for key, val in self.get_description().items():
             logger.info(f"{key}: {val}")
 
@@ -133,16 +190,38 @@ class XpcsDataset(object):
         logger.info(f"sparsity: {self.get_sparsity():.4f}")
         logger.info(f"raw dataset file size: {self.raw_size:.2f} MB")
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """TODO: Add docstring for __len__ magic method.
+
+        Returns:
+            int: Number of batches or relevant length metric.
+        """
         return self.batch_num
 
-    def __reset__(self):
+    def __reset__(self) -> None:
+        """TODO: Add docstring for __reset__ magic method."""
         return
 
-    def __getbatch__(self, idx):
+    def __getbatch__(self, idx) -> any:
+        """TODO: Add docstring for __getbatch__ magic method.
+
+        Parameters:
+            idx: Batch index.
+
+        Returns:
+            any: The batch data.
+        """
         raise NotImplementedError
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> any:
+        """TODO: Add docstring for __getitem__ magic method.
+
+        Parameters:
+            idx: Index of the item.
+
+        Returns:
+            any: The data item.
+        """
         x = self.__getbatch__(idx)
         if self.avg_frame > 1:
             x = x.reshape(-1, self.avg_frame, x.shape[-1])
@@ -171,7 +250,18 @@ class XpcsDataset(object):
 
         fid.close()
 
-    def sparse_to_dense(self, index, frame, count, size):
+    def sparse_to_dense(self, index, frame, count, size) -> any:
+        """TODO: Add docstring for sparse_to_dense method.
+
+        Parameters:
+            index: Sparse index array.
+            frame: Frame data.
+            count: Count information.
+            size: Size parameter.
+
+        Returns:
+            any: Dense data representation.
+        """
         if isinstance(index, np.ndarray):
             # using numpy array; will be sent to device by dataloader
             x = np.zeros((size, self.pixel_num), dtype=self.dtype)

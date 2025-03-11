@@ -1,3 +1,8 @@
+"""Module for help functions in the xpcs_aps_8idi dataset.
+This module provides auxiliary functions used across the boost_corr package.
+TODO: Add detailed documentation.
+"""
+
 import os
 import struct
 

@@ -1,7 +1,13 @@
+"""Module for IMM handling in the xpcs_aps_8idi dataset.
+This module provides utilities to read and process IMM files.
+TODO: Add detailed documentation.
+"""
+
 import logging
 import os
 import struct
 import time
+from typing import Any
 
 import numpy as np
 import torch
@@ -11,7 +17,15 @@ from boost_corr.xpcs_aps_8idi.dataset.xpcs_dataset import XpcsDataset
 logger = logging.getLogger(__name__)
 
 
-def read_imm_header(file):
+def read_imm_header(file) -> str:
+    """Read and return the header of an IMM file.
+
+    Parameters:
+        file: The IMM file object or file path.
+
+    Returns:
+        A string representing the IMM header.
+    """
     imm_headformat = (
         "ii32s16si16siiiiiiiiiiiiiddiiIiiI40sf40sf40sf40s"
         + "f40sf40sf40sf40sf40sf40sfffiiifc295s84s12s"
@@ -101,6 +115,12 @@ class ImmDataset(XpcsDataset):
         frames_per_point=1,
         **kwargs,
     ):
+        """Initialize the IMM handler.
+
+        Parameters:
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         super(ImmDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "IMM Legacy"
         self.frames_per_point = frames_per_point
@@ -136,15 +156,24 @@ class ImmDataset(XpcsDataset):
                     if not f.peek(4):
                         break
 
-                except Exception:
-                    raise IOError("IMM file is corrupted.")
+                except Exception as err:
+                    raise IOError("IMM file is corrupted.") from err
 
             return np.array(toc), det_size
 
     def __reset__(self):
+        """Reset the IMM handler by closing the file handle if open."""
         self.fh = None
 
     def __getbatch__(self, index):
+        """Retrieve a batch of data from the file using the given index.
+
+        Parameters:
+            index: The batch index.
+
+        Returns:
+            The batch data.
+        """
         if self.fh is None:
             self.fh = open(self.fname, "rb")
 
@@ -158,6 +187,14 @@ class ImmDataset(XpcsDataset):
         return x
 
     def __get_frame_dense__(self, batch_idx):
+        """Retrieve a dense frame for the given batch index.
+
+        Parameters:
+            batch_idx: The batch index.
+
+        Returns:
+            Dense frame data.
+        """
         beg, end, size = self.get_raw_index(batch_idx)
         idx_list = np.arange(beg, end, self.stride)
         toc = self.toc[idx_list]
@@ -170,6 +207,14 @@ class ImmDataset(XpcsDataset):
         return x
 
     def __get_frame_sparse__(self, batch_idx):
+        """Retrieve a sparse frame for the given batch index.
+
+        Parameters:
+            batch_idx: The batch index.
+
+        Returns:
+            Sparse frame data.
+        """
         beg, end, size = self.get_raw_index(batch_idx)
         idx_list = np.arange(beg, end, self.stride)
         toc = self.toc[idx_list]
@@ -197,13 +242,23 @@ class ImmDataset(XpcsDataset):
         return self.sparse_to_dense(index, frame, count, size)
 
     def __del__(self):
+        """Destructor to clean up the IMM handler by closing the file handle."""
         try:
             self.fh.close()
         except Exception:
             pass
 
 
-def read_data(file_name, batch_size=1024):
+def read_data(file_name: str, batch_size: int = 1024) -> Any:
+    """Read data from an IMM file.
+
+    Parameters:
+        file_name (str): The path to the IMM file.
+        batch_size (int): Number of items to read per batch.
+
+    Returns:
+        The data read from the file.
+    """
     logger.info("start, fname is: %s", os.path.basename(file_name))
     logger.info("dirname is: %s", os.path.dirname(file_name))
     imm = ImmDataset(file_name, batch_size=1024)
@@ -218,8 +273,7 @@ def read_data(file_name, batch_size=1024):
     tot = 0
     stime = time.perf_counter()
     for n in range(len(imm)):
-        x = imm[n]
-        # tot += torch.sum(x)
+        _ = imm[n]  # Removed unused variable assignment
     etime = time.perf_counter()
     logger.info("sum of array is %d", tot)
     t_diff = etime - stime
@@ -228,7 +282,11 @@ def read_data(file_name, batch_size=1024):
     return freq
 
 
-def test01():
+def test01() -> None:
+    """Test function for IMM processing (test01).
+
+    This is a placeholder test function.
+    """
     file_name = (
         "/scratch/xpcs_data_raw/"
         + "A005_Dragonite_25p_Quiescent_att0_Lq0_001/"
@@ -237,12 +295,20 @@ def test01():
     read_data(file_name)
 
 
-def test02():
+def test02() -> None:
+    """Test function for IMM processing (test02).
+
+    This function tests the read_data function.
+    """
     fname = "/home/8ididata/2021-3/hallinan202111/W2397_S15-SEO-C-S_Lq1_080C_att06_001/W2397_S15-SEO-C-S_Lq1_080C_att06_001_00001-01000.imm"
     read_data(fname)
 
 
-def test03():
+def test03() -> None:
+    """Test function for IMM processing (test03).
+
+    This function is a placeholder test for IMM processing.
+    """
     file_name = (
         "/scratch/xpcs_data_raw/"
         + "A005_Dragonite_25p_Quiescent_att0_Lq0_001/"

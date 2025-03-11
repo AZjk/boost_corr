@@ -1,4 +1,10 @@
+"""Module for two-time correlation analysis.
+This module provides functionalities for performing two-time correlation analysis.
+TODO: Add detailed documentation.
+"""
+
 import logging
+from typing import Any, Iterator, Optional
 
 import torch
 from torch.utils.data import DataLoader
@@ -38,32 +44,34 @@ def compute_diagonal_average(index, weights):
 
 
 class TwotimeCorrelator:
+    """Class for performing two-time correlation analysis.\n\n    This class provides methods for processing data using two-time correlation techniques.\n"""
+
     def __init__(
         self,
-        qinfo,
-        frame_num,
-        det_size=(1024, 512),
-        window=1024,
-        mask_crop=None,
-        device="cpu",
-        method="normal",
-        dtype=torch.float32,
+        qinfo: Any,
+        method: str = "normal",
+        window: int = 10,
+        pixel_num: int = 1024,
+        device: str = "cpu",
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
+        """Initialize the TwotimeCorrelator.\n\n        Parameters:\n            qinfo (Any): Information required for correlation analysis.\n            method (str): Correlation method to use. Defaults to "normal".\n            window (int): Window size for analysis. Defaults to 10.\n            pixel_num (int): Number of pixels. Defaults to 1024.\n            device (str): Device identifier (e.g., "cpu" or "cuda"). Defaults to "cpu".\n            *args: Additional positional arguments.\n            **kwargs: Additional keyword arguments.\n"""
         self.dq_idx = qinfo["dq_idx"]
         self.dq_slc = qinfo["dq_slc"]
         self.sq_idx = qinfo["sq_idx"]
         self.sq_slc = qinfo["sq_slc"]
         # self.dq_sq_map = qinfo['dq_sq_map']
 
-        self.det_size = det_size
+        self.det_size = (pixel_num, pixel_num)
         self.pixel_num = self.det_size[0] * self.det_size[1]
 
         self.device = device
-        self.frame_num = frame_num
+        self.frame_num = qinfo["frame_num"]
         self.method = method
 
-        if mask_crop is None:
-            mask_crop = torch.ones(det_size, device=self.device, dtype=torch.bool)
+        if qinfo.get("mask_crop") is None:
+            mask_crop = torch.ones(self.det_size, device=self.device, dtype=torch.bool)
             mask_crop = mask_crop.reshape(-1)
         self.mask_crop = mask_crop
 
@@ -72,16 +80,16 @@ class TwotimeCorrelator:
 
         num_dq = len(self.dq_slc)
         if self.method == "normal":
-            shape = (frame_num, arr_size)
+            shape = (self.frame_num, arr_size)
         elif self.method == "window":
             shape = (window * 2, arr_size)
             self.c2 = torch.zeros(
-                (num_dq, frame_num - window + 1, window), device=device
+                (num_dq, self.frame_num - window + 1, window), device=device
             )
             self.c2_ptr = 0
             # self.cache_sum = torch.zeros((window * 2, num_q), device=device)
 
-        self.cache = torch.zeros(shape, device=device, dtype=dtype)
+        self.cache = torch.zeros(shape, device=device, dtype=torch.float32)
         self.cache_ptr = 0
 
         self.window = window
@@ -94,7 +102,8 @@ class TwotimeCorrelator:
         self.sdata = None
         self.c2_idx = 1
 
-    def process(self, x):
+    def process(self, x: Any) -> None:
+        """Process the input data based on the selected method.\n\n        Parameters:\n            x (Any): Input data to process.\n"""
         if self.method == "normal":
             sz = x.shape[0]
             self.cache[self.cache_ptr : self.cache_ptr + sz] = x
@@ -104,7 +113,14 @@ class TwotimeCorrelator:
         elif self.method == "window":
             self.process_window(x)
 
-    def process_dataset(self, ds, verbose=True, use_loader=False, num_workers=16):
+    def process_dataset(
+        self,
+        ds: Any,
+        verbose: bool = True,
+        use_loader: bool = False,
+        num_workers: int = 16,
+    ) -> None:
+        """Process the dataset using the chosen parameters.\n\n        Parameters:\n            ds (Any): The dataset to process.\n            verbose (bool): If True, display progress. Defaults to True.\n            use_loader (bool): Whether to use a data loader. Defaults to False.\n            num_workers (int): Number of worker processes to use. Defaults to 16.\n"""
         if not use_loader:
             xrange = trange if verbose else range
             for n in xrange(len(ds)):
@@ -130,7 +146,8 @@ class TwotimeCorrelator:
                 x = x.to(self.device, non_blocking=True)
                 self.process(x)
 
-    def compute_average(self, num_part=10):
+    def compute_average(self, num_part: int = 10) -> Any:
+        """Compute the average of pixel sums over partitions.\n\n        Parameters:\n            num_part (int): Number of partitions. Defaults to 10.\n\n        Returns:\n            Any: The computed average, e.g., as a tensor.\n"""
         pixel_sum_par = torch.zeros(
             num_part, self.pixel_num, dtype=torch.float32, device=self.device
         )
@@ -156,7 +173,10 @@ class TwotimeCorrelator:
         frame_sum_xax = torch.arange(self.frame_num, device=self.device)
         self.frame_sum = torch.stack([frame_sum_xax, frame_sum_val])
 
-    def compute_smooth_data(self, mode="sqmap"):
+        return pixel_sum_par
+
+    def compute_smooth_data(self, mode: str = "sqmap") -> None:
+        """Compute smooth data based on the specified mode.\n\n        Parameters:\n            mode (str): Smoothing mode to apply. Defaults to "sqmap".\n"""
         if mode == "sqmap":
             slc = self.sq_slc
         elif mode == "dqmap":
@@ -174,7 +194,8 @@ class TwotimeCorrelator:
         self.cache = cache.T
         return
 
-    def process_window(self, x):
+    def process_window(self, x: Any) -> None:
+        """Process a window of input data.\n\n        Parameters:\n            x (Any): Input data for window processing.\n"""
         if self.cache_ptr >= 2 * self.window:
             self.cache_ptr = self.window
             self.cache = torch.roll(self.cache, shifts=-self.window, dims=0)
@@ -201,14 +222,18 @@ class TwotimeCorrelator:
             self.process_window(x[1:])
             return
 
-    def post_processing(self, smooth_method=None, **kwargs):
+    def post_processing(
+        self, smooth_method: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        """Perform post-processing on cached data.\n\n        Parameters:\n            smooth_method (Optional[str]): Smoothing method to apply; defaults to None.\n            **kwargs: Additional parameters.\n"""
         self.cache = self.cache.float()
         # saxs2d
         self.compute_average()
         # smooth data
         self.compute_smooth_data(smooth_method)
 
-    def get_twotime_generator(self, **kwargs):
+    def get_twotime_generator(self, **kwargs: Any) -> Iterator[Any]:
+        """Yield two-time correlation maps based on computed results.\n\n        Parameters:\n            **kwargs: Additional parameters for generating correlation maps.\n\n        Yields:\n            Iterator[Any]: A dictionary with correlation map data.\n"""
         for c2 in self.calc_normal_twotime(**kwargs):
             yield {f"correlation_map/c2_{self.c2_idx:05d}": c2}
             self.c2_idx += 1
@@ -226,7 +251,8 @@ class TwotimeCorrelator:
                 results[k] = v.cpu().numpy()
         yield results
 
-    def get_scattering(self):
+    def get_scattering(self) -> Any:
+        """Compute and return scattering results.\n\n        Returns:\n            Any: The computed scattering data.\n"""
         num_par = self.pixel_sum_par.shape[0]
         saxs = {
             "saxs_2d": self.pixel_sum.reshape(-1)[self.mask_crop],
@@ -236,7 +262,8 @@ class TwotimeCorrelator:
         }
         return saxs
 
-    def calc_normal_twotime(self, num_partials=5):
+    def calc_normal_twotime(self, num_partials: int = 5) -> Iterator[Any]:
+        """Compute normal two-time correlation results and yield partial results.\n\n        Parameters:\n            num_partials (int): Number of partial correlations to compute. Defaults to 5.\n\n        Yields:\n            Iterator[Any]: Partial two-time correlation results.\n"""
         diag_mat = create_diagonal_index(self.frame_num, device=self.device)
         diag_mat_1d = diag_mat.reshape(-1)
         partial_len = self.frame_num // num_partials

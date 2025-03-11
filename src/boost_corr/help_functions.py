@@ -1,7 +1,20 @@
+"""Module for help functions.
+This module provides various utility functions such as converting sparse arrays and checking if a number is a power of two.
+TODO: Add detailed documentation.
+"""
+
 import numpy as np
 
 
-def convert_sparse(a):
+def convert_sparse(a: np.ndarray) -> np.ndarray:
+    """Convert a sparse array representation into a dense numpy array.
+
+    Parameters:
+        a (np.ndarray): The input sparse representation array.
+
+    Returns:
+        np.ndarray: The dense array representation.
+    """
     output = np.zeros(shape=(3, a.size), dtype=np.uint32)
     # index
     output[0] = ((a >> 16) & (2**21 - 1)).astype(np.uint32)
@@ -50,7 +63,6 @@ def sort_tau_bin(tau_bin, frame_num):
     tau_max = np.max(tau_bin[0] // (2 ** tau_bin[1]))
 
     levels = list(np.unique(tau_bin[1]))
-    levels_num = len(levels)
     tau_in_level = {}
 
     offset = 0
@@ -71,13 +83,19 @@ def sort_tau_bin(tau_bin, frame_num):
     return tau_max, levels, tau_in_level
 
 
-def is_power_two(num):
+def is_power_two(num: int) -> bool:
+    """Check if the given number is a power of two (1, 2, 4, 8, ...).
+
+    Parameters:
+        num (int): The number to check.
+
+    Returns:
+        bool: True if num is a power of two, otherwise False.
+    """
     # return true for 1, 2, 4, 8, 16 ...
     while num > 2:
-        if num % 2 == 1:
-            return False
-        num //= 2
-    return num == 2 or num == 1
+        num /= 2
+    return (num == 2) or (num == 1)
 
 
 def nonzero_crop(img):
