@@ -126,7 +126,15 @@ class Ui(QMainWindow):
         self.device_list.setModel(self.model)
         self.show()
 
-    def select_setup_file(self, idx=1):
+    def select_setup_file(self, idx: int = 1) -> None:
+        """Select a setup file based on index.
+
+        Parameters:
+            idx (int): Index of the setup file (must be 1, 2, or 3).
+
+        Returns:
+            None
+        """
         if self.is_running:
             self.statusbar.showMessage("Server is running now.", 2000)
             return
@@ -139,7 +147,12 @@ class Ui(QMainWindow):
             self.statusbar.showMessage("the setup file is not valid.")
         return
 
-    def select_result_dir(self):
+    def select_result_dir(self) -> None:
+        """Select the result directory using a file dialog and update the UI element.
+
+        Returns:
+            None
+        """
         if self.is_running:
             self.statusbar.showMessage("Server is running now.", 2000)
             return
@@ -150,7 +163,13 @@ class Ui(QMainWindow):
         else:
             self.statusbar.showMessage("the result directory is not valid.")
 
-    def submit_jobs(self):
+    def submit_jobs(self) -> None:
+        """Submit jobs to the server by allowing the user to select raw files.
+        If the server is not running, displays a message.
+
+        Returns:
+            None
+        """
         if not self.is_running:
             self.statusbar.showMessage("Server is not running. quit", 2000)
             return
@@ -161,14 +180,17 @@ class Ui(QMainWindow):
             directory="/clhome/MQICHU",
             filter="TXT (*.txt)",
         )
-        # filter="TIFF (*.tif);;HDF (*.h5 *.hdf)")
+        # For now, process the first selected file
+        if flists and flists[0]:
+            print(flists[0])
+            self.server.process_all_files(flists[0])
 
-        # self.server.submit_jobs(flists[0])
-        # self.server.submit_(flists[0])
-        print(flists[0])
-        self.server.process_all_files(flists[0])
+    def update_status(self) -> None:
+        """Update the server status and refresh the UI elements accordingly.
 
-    def update_status(self):
+        Returns:
+            None
+        """
         if self.server is not None:
             flag, message, jobs_info = self.server.get_status(self.load_window)
         else:
@@ -189,7 +211,12 @@ class Ui(QMainWindow):
         message = str(time.asctime()) + " | " + message
         self.lineEdit_8.setText(message)
 
-    def start_server(self):
+    def start_server(self) -> None:
+        """Start the GPU correlation server using the current UI configuration.
+
+        Returns:
+            None
+        """
         if self.is_running:
             self.statusbar.showMessage("Server is running.", 1000)
             return
@@ -226,11 +253,25 @@ class Ui(QMainWindow):
         self.lineEdit.setText(self.server.ip_addr)
         self.statusbar.showMessage("Server started", 1000)
 
-    def enable_disable_panel(self, flag=True, idx=0):
-        pass
-        # self.gb_det_1.setEnabled(flag)
+    def enable_disable_panel(self, flag: bool = True, idx: int = 0) -> None:
+        """Enable or disable a specific panel in the UI.
 
-    def stop_server(self):
+        Parameters:
+            flag (bool): Whether to enable (True) or disable (False) the panel.
+            idx (int): Index of the panel to modify.
+
+        Returns:
+            None
+        """
+        # TODO: Implement panel enable/disable functionality
+        pass
+
+    def stop_server(self) -> None:
+        """Stop the GPU correlation server, stop the timer, and update the UI status.
+
+        Returns:
+            None
+        """
         self.statusbar.showMessage("Server is stopping", 8000)
         if self.is_running:
             self.timer.stop()
@@ -240,7 +281,15 @@ class Ui(QMainWindow):
         self.update_status()
         self.statusbar.showMessage("Server stopped", 1000)
 
-    def load_save_setting(self, mode="save"):
+    def load_save_setting(self, mode: str = "save") -> None:
+        """Save or load the UI settings from a JSON file.
+
+        Parameters:
+            mode (str): 'save' to save settings, 'load' to load settings.
+
+        Returns:
+            None
+        """
         text_field = ["watch_pv", "watch_folder", "result_dir"]
 
         num_field = ["port"]

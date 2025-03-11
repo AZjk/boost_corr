@@ -11,8 +11,17 @@ from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 logger = logging.getLogger(__name__)
 
+"""TODO: Add module-level docstring for gpu_corr_twotime.
+This module implements two-time correlation solving functionality.
+"""
+
 
 def solve_twotime(*args: Any, **kwargs: Any) -> Union[str, None]:
+    """TODO: Add docstring for solve_twotime.
+
+    Returns:
+        Union[str, None]: The result of two-time correlation solving.
+    """
     kwargs_record = kwargs.copy()
     kwargs_record["analysis_type"] = "twotime"
     return solve_twotime_base(*args, analysis_kwargs=kwargs_record, **kwargs)
@@ -39,6 +48,16 @@ def solve_twotime_base(
     save_results: bool = True,
     **kwargs,
 ):
+    """TODO: Add docstring for solve_twotime_base.
+
+    Parameters:
+        qmap (Optional[Union[str, Path]]): Qmap file or identifier.
+        raw (Optional[Union[str, Path]]): Raw data file or folder.
+        **kwargs: Additional parameters.
+
+    Returns:
+        Union[str, None]: The result of the base two-time correlation solving.
+    """
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
     device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"

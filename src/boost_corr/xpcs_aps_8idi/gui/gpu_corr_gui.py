@@ -1,3 +1,7 @@
+"""TODO: Add module-level docstring for gpu_corr_gui.
+This module provides the GPU correlation GUI functionality.
+"""
+
 import json
 import os
 from typing import Optional
@@ -17,6 +21,11 @@ from PyQt5.QtWidgets import (
 
 
 def get_system_information():
+    """TODO: Add docstring for get_system_information.
+
+    Returns:
+        dict: System information including GPU and CPU details.
+    """
     sys_info = {}
     sys_info["num_gpus"] = torch.cuda.device_count()
     sys_info["num_cpus"] = psutil.cpu_count(logical=False)
@@ -38,6 +47,7 @@ def get_system_information():
 
 class TableDataModel(QtCore.QAbstractTableModel):
     def __init__(self, input_list=None, max_display=16384) -> None:
+        """Initialize TableDataModel with an optional input list and maximum display."""
         super().__init__()
         if input_list is None:
             self.input_list = []

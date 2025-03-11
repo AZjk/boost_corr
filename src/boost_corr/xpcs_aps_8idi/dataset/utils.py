@@ -1,3 +1,8 @@
+"""Module for dataset utilities.
+
+This module provides functionality to create datasets from raw data files.
+"""
+
 import os
 
 import magic

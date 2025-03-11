@@ -1,3 +1,8 @@
+"""TODO: Add module-level docstring for hdf_reader.
+
+This module provides utilities for reading HDF files for boost_corr.
+"""
+
 import logging
 import traceback
 

@@ -6,7 +6,7 @@ and batching job submissions for GPU correlation processing.
 
 import argparse
 import logging
-import socket
+import sys
 import traceback
 from typing import Any, Optional
 
@@ -16,8 +16,8 @@ server_ip = "164.54.100.186"
 port = 5556
 
 context = zmq.Context()
-socket = context.socket(zmq.PAIR)
-socket.connect(f"tcp://{server_ip}:{port}")
+client_socket = context.socket(zmq.PAIR)
+client_socket.connect(f"tcp://{server_ip}:{port}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,13 +59,13 @@ def submit_job(
         return None
 
     if payload["cmd"] == "Status":
-        socket.send_json({"cmd": "Status"})
-        status = socket.recv_json()
+        client_socket.send_json({"cmd": "Status"})
+        status = client_socket.recv_json()
         logger.info(status["status"])
         return status
 
     try:
-        socket.send_json(payload)
+        client_socket.send_json(payload)
     except Exception:
         logger.error(f"Failed to submit job to [{server_ip}:{port}]")
         traceback.print_exc()
@@ -80,8 +80,8 @@ def check_status() -> Any:
     Returns:
         Any: The status response from the server.
     """
-    socket.send_json({"cmd": "Status"})
-    status = socket.recv_json()
+    client_socket.send_json({"cmd": "Status"})
+    status = client_socket.recv_json()
     logger.info(status["status"])
     return status
 
@@ -100,71 +100,67 @@ def batch_jobs(raw_fname: str) -> Any:
 
     with open(raw_fname, "r") as f:
         for line in f:
-            # remove the ending /n
-            raw = line[:-1]
+            # remove the ending newline character
+            raw = line.rstrip("\n")
             submit_job(raw, qmap, output)
             break
 
 
-description = "XPCS-Boost Client - Submit jobs to GPU clusters"
-parser = argparse.ArgumentParser(description=description)
+if __name__ == "__main__":
+    description = "XPCS-Boost Client - Submit jobs to GPU clusters"
+    parser = argparse.ArgumentParser(description=description)
 
-parser.add_argument(
-    "-r",
-    "--raw",
-    metavar="RAW_FILENAME",
-    type=str,
-    required=False,
-    help="the filename of the raw data file (imm/rigaku)",
-)
+    parser.add_argument(
+        "-r",
+        "--raw",
+        metavar="RAW_FILENAME",
+        type=str,
+        required=False,
+        help="the filename of the raw data file (imm/rigaku)",
+    )
 
-parser.add_argument(
-    "-q",
-    "--qmap",
-    metavar="QMAP_FILENAME",
-    required=False,
-    type=str,
-    help="the filename of the qmap file (hdf)",
-)
+    parser.add_argument(
+        "-q",
+        "--qmap",
+        metavar="QMAP_FILENAME",
+        type=str,
+        required=False,
+        help="the filename of the qmap file (hdf)",
+    )
 
-parser.add_argument(
-    "-o",
-    "--output",
-    metavar="OUTPUT_DIR",
-    type=str,
-    required=False,
-    default="cluster_results",
-    help="""[default: cluster_results] the output directory
-                            for the result file. If not exit, the program will
-                            create this directory.""",
-)
+    parser.add_argument(
+        "-o",
+        "--output",
+        metavar="OUTPUT_DIR",
+        type=str,
+        required=False,
+        default="cluster_results",
+        help="[default: cluster_results] the output directory for the result file. If not exist, the program will create this directory.",
+    )
 
-parser.add_argument(
-    "-c",
-    "--cmd",
-    metavar="CMD",
-    type=str,
-    required=False,
-    default="Multitau",
-    help="""
-                        [default: "Multitau"] Analysis CMD: ["Multitau",
-                        "Twotime", "Both", "Status"].
-                    """,
-)
+    parser.add_argument(
+        "-c",
+        "--cmd",
+        metavar="CMD",
+        type=str,
+        required=False,
+        default="Multitau",
+        help='[default: "Multitau"] Analysis CMD: ["Multitau", "Twotime", "Both", "Status"].',
+    )
 
-parser.add_argument(
-    "--verbose", "-v", default=False, action="store_true", help="verbose"
-)
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", default=False, help="verbose"
+    )
 
-args = parser.parse_args()
-kwargs = vars(args)
+    args = parser.parse_args()
+    kwargs = vars(args)
 
-if len(kwargs) == 0:
-    return None
+    if len(kwargs) == 0:
+        sys.exit(0)
 
-if kwargs["cmd"] == "Status":
-    check_status()
-else:
-    for x in ("raw", "qmap", "output"):
-        assert x in kwargs.keys()
-    submit_job(**kwargs)
+    if kwargs["cmd"] == "Status":
+        check_status()
+    else:
+        for x in ("raw", "qmap", "output"):
+            assert x in kwargs.keys()
+        submit_job(**kwargs)

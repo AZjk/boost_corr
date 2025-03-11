@@ -15,8 +15,17 @@ from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 logger = logging.getLogger(__name__)
 
+"""TODO: Add module-level docstring for gpu_corr_multitau.
+This module implements multitau correlation solving functionality.
+"""
+
 
 def solve_multitau(*args: Any, **kwargs: Any) -> Union[str, None]:
+    """TODO: Add docstring for solve_multitau.
+
+    Returns:
+        Union[str, None]: The result of the multitau correlation solving.
+    """
     kwargs_record = kwargs.copy()
     kwargs_record["analysis_type"] = "multitau"
     return solve_multitau_base(*args, analysis_kwargs=kwargs_record, **kwargs)
@@ -41,6 +50,16 @@ def solve_multitau_base(
     save_results: bool = True,
     **kwargs: Any,
 ) -> Union[str, None]:
+    """TODO: Add docstring for solve_multitau_base.
+
+    Parameters:
+        qmap (Optional[Union[str, Path]]): Qmap file or identifier.
+        raw (Optional[Union[str, Path]]): Raw data file or folder.
+        **kwargs: Additional parameters.
+
+    Returns:
+        Union[str, None]: The result of the base multitau correlation solving.
+    """
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
 

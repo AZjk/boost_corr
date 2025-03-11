@@ -1,3 +1,7 @@
+"""TODO: Add module-level docstring for gpu_corr.
+This module handles GPU correlation operations.
+"""
+
 # from .gpu_corr_multitau import solve_multitau
 from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
 
@@ -9,6 +13,14 @@ from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 
 def solve_corr(analysis="Both", *args, **kwargs):
+    """TODO: Add docstring for solve_corr.
+
+    Parameters:
+        analysis (str): Analysis type, one of 'Multitau', 'Twotime', or 'Both'.
+
+    Returns:
+        Any: The result of the correlation solving.
+    """
     assert analysis in ["Multitau", "Twotime", "Both"]
     if analysis == "Multitau":
         return solve_multitau(*args, save_results=True, **kwargs)
