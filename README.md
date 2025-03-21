@@ -2,26 +2,19 @@ boost-corr
 ==========
 
 
-
-
-
-
 a high-performance correlation (multi-tau/two-time) package running on GPU and CPU
 
-Installation (updated on 02/28/2022)
+Installation (updated on 03/21/2025)
 --------
-* create new virtual environment use conda. Python version is specified here because the pytorch package only supports python 3.7-3.9. You can also use "python -m venv" or "virtualenv" to create a virutal enviroment.
+* create new virtual environment use conda. Python version is specified here because the pytorch package supports python >= 3.9.
 
-	YOUR_ENV_NAME=boost_corr_test
-        conda create -n YOUR_ENV_NAME python=3.9
+        conda create -n YOUR_ENV_NAME python==3.12.8
 
 * activate your new environment
 
         conda activate YOUR_ENV_NAME
 
-* install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/), for example:
-
-        conda install pytorch==1.12.1 cudatoolkit=11.6 -c pytorch -c conda-forge
+* install the latest pytorch package, following the instructions on [pytorch.org](https://pytorch.org/get-started/locally/)
 
 
 * clone and install boost-corr

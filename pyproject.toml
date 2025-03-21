@@ -14,12 +14,12 @@ dependencies = [
     "hdf5plugin",
     "python-magic",
     "matplotlib",
-    "numpy>=1.21.0",
-    "scipy>=1.7.0",
+    "numpy",
+    "scipy",
     "psutil",
     "scikit-image",
     "tqdm",
-    "torch>=1.10",
+    "torch",
 ]
 
 [project.optional-dependencies]
