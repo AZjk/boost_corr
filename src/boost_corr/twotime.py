@@ -13,12 +13,29 @@ from tqdm import tqdm, trange
 logger = logging.getLogger(__name__)
 
 
-def create_diagonal_index(N=512, device="cpu"):
+def create_diagonal_index(N: int = 512, device: str = "cpu") -> Tensor:
     """
-    create a matrix of indices for diagonal averaging
-    :param N: size of the matrix
-    :return: NxN matrix with indices for diagonal averaging
-    Example:
+    Create a matrix of indices for diagonal averaging.
+
+    This function generates a square matrix of shape (N, N), where each element
+    at position (i, j) represents the absolute difference |i - j|. This is
+    commonly used for diagonal averaging operations in matrix processing.
+
+    Parameters
+    ----------
+    N : int, optional
+        Size of the square matrix (default is 512).
+    device : str, optional
+        The device on which the tensor will be allocated, e.g., "cpu" or "cuda"
+        (default is "cpu").
+
+    Returns
+    -------
+    Tensor
+        A tensor of shape (N, N) containing diagonal indices.
+
+    Examples
+    --------
     >>> create_diagonal_index(5)
     tensor([[0, 1, 2, 3, 4],
             [1, 0, 1, 2, 3],
@@ -31,13 +48,38 @@ def create_diagonal_index(N=512, device="cpu"):
     return diag_mat
 
 
-def compute_diagonal_average(index, weights):
+def compute_diagonal_average(index: Tensor, weights: Tensor) -> Tensor:
     """
-    compute the diagonal average of a matrix using precomputed indices and weights
-    :param index:  matrix with indices for diagonal averaging
-    :param weights: NxN matrix with weights for diagonal averaging
+    Compute the diagonal average of a matrix using precomputed indices and weights.
+
+    This function aggregates the weights corresponding to each unique index value
+    and computes their average, effectively averaging elements along matrix diagonals.
+
+    Parameters
+    ----------
+    index : Tensor
+        A 1D tensor of indices (typically flattened from a 2D matrix).
+    weights : Tensor
+        A 1D tensor of weights (same shape as `index`) corresponding to each entry.
+
+    Returns
+    -------
+    Tensor
+        A 1D tensor where each element is the average of weights for the corresponding index.
+
+    Notes
+    -----
+    The function assumes `index` and `weights` are both flattened and of the same shape.
+
+    Examples
+    --------
+    >>> idx = create_diagonal_index(3).flatten()
+    >>> w = torch.tensor([[1., 2., 3.],
+    ...                   [4., 5., 6.],
+    ...                   [7., 8., 9.]]).flatten()
+    >>> compute_diagonal_average(idx, w)
+    tensor([5.0000, 5.0000, 5.0000])
     """
-    # index and weights must be both one d;
     tot = torch.bincount(index, weights=weights)
     pts = torch.bincount(index)
     return tot / pts
