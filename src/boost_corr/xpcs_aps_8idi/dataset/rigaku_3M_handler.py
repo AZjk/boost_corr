@@ -95,7 +95,7 @@ class Rigaku3MDataset(XpcsDataset):
         """
         frame_num = [x.frame_num for x in self.container]
         assert len(set(frame_num)) == 1, "frame number mismatch in the 6 modules"
-        self.frame_num = frame_num[0]
+        self.update_batch_info(frame_num[0])
         shape_one = self.container[0].det_size
         shape = [
             shape_one[n] * self.layout[n] + self.gap[n] * (self.layout[n] - 1)

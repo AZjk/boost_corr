@@ -47,7 +47,10 @@ def get_metadata(meta_dir: str):
     """
     meta_fnames = glob.glob(os.path.join(meta_dir, "*_metadata.hdf"))
     if meta_fnames:
-        return meta_fnames[0]
+        for f in meta_fnames:
+            is_meta, meta_type = is_metadata(f)
+            if is_meta:
+                return f, meta_type
     raise FileNotFoundError("Metadata file not found.")
 
 
@@ -100,28 +103,22 @@ class XpcsResult:
     Attributes:
         meta_dir (Optional[str]): Path to the metadata directory.
     """
-
-    def __init__(self, meta_dir: str = None) -> None:
-        """Initialize the XpcsResult object.
-
-        Parameters:
-            meta_dir (Optional[str]): Directory containing metadata. Defaults to None.
-
-        Returns:
-            None
-        """
+    def __init__(self, meta_dir=None, qmap_fname=None, output_dir=None,
+                 overwrite=False,
+                 multitau_config=None,
+                 twotime_config=None) -> None:
         self.meta_dir = meta_dir
-        self.qmap_fname = None
-        self.output_dir = None
-        self.overwrite = False
+        self.qmap_fname = qmap_fname
+        self.output_dir = output_dir
+        self.overwrite = overwrite
         self.fname = None
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
-        self.success = True
+        self.success = True 
         self.analysis_config = {
-            "multitau_config": {},
-            "twotime_config": {},
+            'multitau_config': multitau_config or {},
+            'twotime_config': twotime_config or {}
         }
 
     def __enter__(self):
