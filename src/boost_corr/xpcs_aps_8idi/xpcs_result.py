@@ -103,10 +103,27 @@ class XpcsResult:
     Attributes:
         meta_dir (Optional[str]): Path to the metadata directory.
     """
-    def __init__(self, meta_dir=None, qmap_fname=None, output_dir=None,
-                 overwrite=False,
-                 multitau_config=None,
-                 twotime_config=None) -> None:
+
+    def __init__(
+        self,
+        meta_dir=None,
+        qmap_fname=None,
+        output_dir=None,
+        overwrite=False,
+        multitau_config=None,
+        twotime_config=None,
+    ) -> None:
+        """Initialize an XpcsResult instance.
+
+        Args:
+            meta_dir: Directory containing metadata files.
+            qmap_fname: Path to the qmap file.
+            output_dir: Directory where results will be saved.
+            overwrite: Whether to overwrite existing files.
+            multitau_config: Configuration for multitau analysis.
+            twotime_config: Configuration for twotime analysis.
+        """
+
         self.meta_dir = meta_dir
         self.qmap_fname = qmap_fname
         self.output_dir = output_dir
@@ -115,10 +132,10 @@ class XpcsResult:
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
-        self.success = True 
+        self.success = True
         self.analysis_config = {
-            'multitau_config': multitau_config or {},
-            'twotime_config': twotime_config or {}
+            "multitau_config": multitau_config or {},
+            "twotime_config": twotime_config or {},
         }
 
     def __enter__(self):
