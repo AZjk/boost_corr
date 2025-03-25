@@ -10,10 +10,6 @@ import time
 from pathlib import Path
 from typing import Any, Optional, Union
 
-# from .. import MultitauCorrelator
-# from .dataset import create_dataset
-# from .xpcs_qpartitionmap import XpcsQPartitionMap
-# from .xpcs_result import XpcsResult
 from boost_corr.multitau import MultitauCorrelator
 from boost_corr.xpcs_aps_8idi.dataset import create_dataset
 from boost_corr.xpcs_aps_8idi.xpcs_qpartitionmap import XpcsQPartitionMap

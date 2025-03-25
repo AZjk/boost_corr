@@ -2,13 +2,8 @@
 This module handles GPU correlation operations.
 """
 
-# from .gpu_corr_multitau import solve_multitau
 from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
-
-# from .gpu_corr_twotime import solve_twotime
 from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
-
-# from .xpcs_result import XpcsResult
 from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
 

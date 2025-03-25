@@ -15,11 +15,11 @@ import magic
 import numpy as np
 import torch
 import zmq
+from xpcs_boost import XpcsBoost as XB
 
 from boost_corr.xpcs_aps_8idi.dataset.hdf_handler import HdfDataset
 from boost_corr.xpcs_aps_8idi.dataset.imm_handler import ImmDataset
 from boost_corr.xpcs_aps_8idi.dataset.rigaku_handler import RigakuDataset
-from boost_corr.xpcs_aps_8idi.xpcs_boost import XpcsBoost as XB
 from boost_corr.xpcs_aps_8idi.xpcs_qpartitionmap import XpcsQPartitionMap
 from boost_corr.xpcs_aps_8idi.xpcs_result import XpcsResult
 
