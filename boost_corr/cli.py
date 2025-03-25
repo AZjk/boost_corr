@@ -159,7 +159,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "-G", "--save-g2",
+    "-G", "--save-G2",
     action="store_true",
     default=default_config['save_G2'],
     help="Save G2, IP, and IF to file"

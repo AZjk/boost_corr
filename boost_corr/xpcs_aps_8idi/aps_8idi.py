@@ -2,7 +2,7 @@ key = {
   "delay_list": "/xpcs/multitau/delay_list",
   "g2":     "/xpcs/multitau/normalized_g2",
   "g2_err": "/xpcs/multitau/normalized_g2_err",
-  "G2":     "/xpcs/multitau/unnormalized_G2",
+  "G2IPIF":     "/xpcs/multitau/unnormalized_G2",
   "multitau_config": "/xpcs/multitau/config",
 
   "saxs_2d": "/xpcs/temporal_mean/scattering_2d",
