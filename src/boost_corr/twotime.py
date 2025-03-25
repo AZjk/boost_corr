@@ -49,28 +49,30 @@ class TwotimeCorrelator:
     def __init__(
         self,
         qinfo: Any,
+        frame_num: int = 1024,
+        det_size=(1024, 512),
         method: str = "normal",
         window: int = 10,
-        pixel_num: int = 1024,
         device: str = "cpu",
+        mask_crop=None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        """Initialize the TwotimeCorrelator.\n\n        Parameters:\n            qinfo (Any): Information required for correlation analysis.\n            method (str): Correlation method to use. Defaults to "normal".\n            window (int): Window size for analysis. Defaults to 10.\n            pixel_num (int): Number of pixels. Defaults to 1024.\n            device (str): Device identifier (e.g., "cpu" or "cuda"). Defaults to "cpu".\n            *args: Additional positional arguments.\n            **kwargs: Additional keyword arguments.\n"""
+        """Initialize the TwotimeCorrelator.\n\n        Parameters:\n            qinfo (Any): Information required for correlation analysis.\n            method (str): Correlation method to use. Defaults to "normal".\n            window (int): Window size for analysis. Defaults to 10.\n           device (str): Device identifier (e.g., "cpu" or "cuda"). Defaults to "cpu".\n            *args: Additional positional arguments.\n            **kwargs: Additional keyword arguments.\n"""
         self.dq_idx = qinfo["dq_idx"]
         self.dq_slc = qinfo["dq_slc"]
         self.sq_idx = qinfo["sq_idx"]
         self.sq_slc = qinfo["sq_slc"]
         # self.dq_sq_map = qinfo['dq_sq_map']
 
-        self.det_size = (pixel_num, pixel_num)
+        self.det_size = det_size
         self.pixel_num = self.det_size[0] * self.det_size[1]
 
         self.device = device
-        self.frame_num = qinfo["frame_num"]
+        self.frame_num = frame_num
         self.method = method
 
-        if qinfo.get("mask_crop") is None:
+        if mask_crop is None:
             mask_crop = torch.ones(self.det_size, device=self.device, dtype=torch.bool)
             mask_crop = mask_crop.reshape(-1)
         self.mask_crop = mask_crop
