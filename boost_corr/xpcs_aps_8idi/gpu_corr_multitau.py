@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def solve_multitau(*args: Any, **kwargs: Any) -> Union[str, None]:
-    kwargs_record = kwargs.copy() 
-    kwargs_record["analysis_type"] = 'multitau'
+    kwargs_record = kwargs.copy()
+    kwargs_record["analysis_type"] = "multitau"
     return solve_multitau_base(*args, analysis_kwargs=kwargs_record, **kwargs)
 
 
@@ -44,20 +44,24 @@ def solve_multitau_base(
     device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
 
     # create qpartitionmap
-    qpm = XpcsQPartitionMap(qmap, device=device,
-                            masked_ratio_threshold=masked_ratio_threshold)
+    qpm = XpcsQPartitionMap(
+        qmap, device=device, masked_ratio_threshold=masked_ratio_threshold
+    )
 
     if verbose:
         qpm.describe()
         logger.info(f"device: {device}")
 
     # create dataset
-    dset, use_loader = create_dataset(raw, device,
-                                      mask_crop=qpm.mask_crop,
-                                      avg_frame=avg_frame,
-                                      begin_frame=begin_frame,
-                                      end_frame=end_frame,
-                                      stride_frame=stride_frame)
+    dset, use_loader = create_dataset(
+        raw,
+        device,
+        mask_crop=qpm.mask_crop,
+        avg_frame=avg_frame,
+        begin_frame=begin_frame,
+        end_frame=end_frame,
+        stride_frame=stride_frame,
+    )
 
     # in some detectors/configurations, the qmap is rotated
     qpm.update_rotation(dset.det_size)
@@ -72,7 +76,8 @@ def solve_multitau_base(
         queue_size=batch_size,  # batch_size is the minimal value
         auto_queue=True,
         device=device,
-        mask_crop=qpm.mask_crop)
+        mask_crop=qpm.mask_crop,
+    )
 
     if verbose:
         dset.describe()
@@ -80,13 +85,15 @@ def solve_multitau_base(
         logger.info("correlation solver created.")
 
     t_start = time.perf_counter()
-    xb.process_dataset(dset, verbose=verbose, use_loader=use_loader,
-                       num_workers=num_loaders)
+    xb.process_dataset(
+        dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders
+    )
     t_end = time.perf_counter()
     t_diff = t_end - t_start
     frequency = dset.frame_num / t_diff
-    logger.info(f"correlation finished in {t_diff:.2f}s." +
-                f" frequency = {frequency:.2f} Hz")
+    logger.info(
+        f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz"
+    )
 
     t_start = time.perf_counter()
     output_scattering, output_multitau = xb.get_results()
@@ -96,8 +103,14 @@ def solve_multitau_base(
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
     if save_results:
-        with XpcsResult(meta_dir, qmap, output, overwrite=overwrite,
-                        multitau_config=analysis_kwargs) as result_file:
+        with XpcsResult(
+            meta_dir,
+            qmap,
+            output,
+            overwrite=overwrite,
+            multitau_config=analysis_kwargs,
+            rawdata_path=os.path.realpath(raw),
+        ) as result_file:
             result_file.append(norm_scattering)
             result_file.append(norm_multitau)
 
@@ -105,10 +118,10 @@ def solve_multitau_base(
         return result_file.fname
     else:
         result_file_kwargs = {
-            'meta_dir': meta_dir,
-            'qmap_fname': qmap,
-            'output_dir': output,
-            'overwrite': overwrite,
-            'multitau_config': analysis_kwargs
+            "meta_dir": meta_dir,
+            "qmap_fname": qmap,
+            "output_dir": output,
+            "overwrite": overwrite,
+            "multitau_config": analysis_kwargs,
         }
         return result_file_kwargs, (norm_scattering, norm_multitau)

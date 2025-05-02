@@ -17,9 +17,9 @@ def is_metadata(fname: str):
 
     with h5py.File(fname, "r") as f:
         if "/entry/schema_version" in f:
-            return True, 'nexus'
+            return True, "nexus"
 
-    return False, None 
+    return False, None
 
 
 def get_metadata(meta_dir: str):
@@ -29,13 +29,11 @@ def get_metadata(meta_dir: str):
             is_meta, meta_type = is_metadata(f)
             if is_meta:
                 return f, meta_type
-    raise FileNotFoundError(f'no metadata file found in [{meta_dir}]')
+    raise FileNotFoundError(f"no metadata file found in [{meta_dir}]")
 
 
 def create_unique_file(
-    output_dir: str,
-    meta_fname: str,
-    overwrite: bool = False
+    output_dir: str, meta_fname: str, overwrite: bool = False
 ) -> str:
     """
     Create a unique filename for an HDF file, avoiding overwriting existing files.
@@ -66,10 +64,10 @@ def create_unique_file(
     """
     # Create the base filename
     base_fname = os.path.basename(meta_fname)
-    
+
     # Ensure the filename has the .hdf extension
     name, ext = os.path.splitext(base_fname)
-    base_fname = name.rstrip('_metadata') + "_results.hdf"
+    base_fname = name.rstrip("_metadata") + "_results.hdf"
 
     # Create the full path
     fname = os.path.join(output_dir, base_fname)
@@ -89,10 +87,16 @@ def create_unique_file(
 
 
 class XpcsResult:
-    def __init__(self, meta_dir=None, qmap_fname=None, output_dir=None,
-                 overwrite=False,
-                 multitau_config=None,
-                 twotime_config=None) -> None:
+    def __init__(
+        self,
+        meta_dir=None,
+        qmap_fname=None,
+        output_dir=None,
+        overwrite=False,
+        rawdata_path=None,
+        multitau_config=None,
+        twotime_config=None,
+    ) -> None:
         self.meta_dir = meta_dir
         self.qmap_fname = qmap_fname
         self.output_dir = output_dir
@@ -101,10 +105,11 @@ class XpcsResult:
         self.G2_fname = None
         self.fname_temp = None
         self.G2_fname_temp = None
-        self.success = True 
+        self.success = True
         self.analysis_config = {
-            'multitau_config': multitau_config or {},
-            'twotime_config': twotime_config or {}
+            "rawdata_path": rawdata_path,
+            "multitau_config": multitau_config or {},
+            "twotime_config": twotime_config or {},
         }
 
     def __enter__(self):
@@ -112,12 +117,13 @@ class XpcsResult:
         Perform setup when entering the context manager.
         """
         meta_fname, meta_ftype = get_metadata(self.meta_dir)
-        logger.info(f'metadata filename/type is {meta_fname} | {meta_ftype}')
-        self.fname = create_unique_file(self.output_dir, meta_fname,
-                                        overwrite=self.overwrite)
-        self.G2_fname = os.path.splitext(self.fname)[0] + '_G2.hdf'
-        self.fname_temp = self.fname + '.temp'
-        self.G2_fname_temp = self.G2_fname + '.temp'
+        logger.info(f"metadata filename/type is {meta_fname} | {meta_ftype}")
+        self.fname = create_unique_file(
+            self.output_dir, meta_fname, overwrite=self.overwrite
+        )
+        self.G2_fname = os.path.splitext(self.fname)[0] + "_G2.hdf"
+        self.fname_temp = self.fname + ".temp"
+        self.G2_fname_temp = self.G2_fname + ".temp"
 
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
@@ -125,15 +131,15 @@ class XpcsResult:
         os.chmod(self.fname_temp, 0o644)
         self.append(self.analysis_config)
         return self
-    
+
     def append(self, result_dict):
         """
         Save the provided result_dict to the temporary files.
         """
         try:
-            if 'G2' in result_dict:
-                self.append_and_link_G2(result_dict['G2'])
-                del result_dict['G2']
+            if "G2" in result_dict:
+                self.append_and_link_G2(result_dict["G2"])
+                del result_dict["G2"]
             put_results_in_hdf5(self.fname_temp, result_dict)
         except Exception:
             traceback.print_exc()
@@ -147,14 +153,13 @@ class XpcsResult:
         append the provided result_dict to the temporary files.
         """
         try:
-            put_results_in_hdf5(self.G2_fname_temp, 
-                                {'G2IPIF': G2_dict},
-                                mode="raw")
+            put_results_in_hdf5(self.G2_fname_temp, {"G2IPIF": G2_dict}, mode="raw")
             # Create a link for the main file
-            with h5py.File(self.fname_temp, 'r+') as f:
+            with h5py.File(self.fname_temp, "r+") as f:
                 relative_path = os.path.basename(self.G2_fname)
-                f['/xpcs/multitau/unnormalized_g2'] = \
-                    h5py.ExternalLink(relative_path, "/G2IPIF")
+                f["/xpcs/multitau/unnormalized_g2"] = h5py.ExternalLink(
+                    relative_path, "/G2IPIF"
+                )
         except Exception:
             traceback.print_exc()
             self.success = False
@@ -174,7 +179,7 @@ class XpcsResult:
                     shutil.move(self.G2_fname_temp, self.G2_fname)
             except Exception:
                 traceback.print_exc()
-                logger.error('failed to rename the result files')
+                logger.error("failed to rename the result files")
                 self.success = False
                 raise
 
