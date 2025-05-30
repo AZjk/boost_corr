@@ -31,36 +31,36 @@ def average_with_index_map(
     norm_factor: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
     """
-    Computes the cluster-wise average intensity of an image tensor based on a 
+    Computes the cluster-wise average intensity of an image tensor based on a
     quantization/segmentation map.
 
     Parameters
     ----------
     img : torch.Tensor
-        A tensor of shape (C, H, W) or (C, N) where C is the number of images 
-        (or channels), and H, W represent the height and width of the image. 
+        A tensor of shape (C, H, W) or (C, N) where C is the number of images
+        (or channels), and H, W represent the height and width of the image.
         The tensor contains pixel intensities.
     qmap : torch.Tensor
-        A tensor of shape (H, W) or (N,) containing cluster labels 
+        A tensor of shape (H, W) or (N,) containing cluster labels
         (quantization indices) for each pixel.
     size : int, optional
-        The total number of clusters (quantization levels). If not provided, 
+        The total number of clusters (quantization levels). If not provided,
         it is inferred from `qmap`.
     norm_factor : torch.Tensor, optional
-        A precomputed normalization factor for each cluster. If None, it is 
+        A precomputed normalization factor for each cluster. If None, it is
         computed based on `qmap`.
 
     Returns
     -------
     torch.Tensor
-        A tensor of shape (C, size-1) where each value represents the average 
+        A tensor of shape (C, size-1) where each value represents the average
         intensity of the corresponding cluster.
 
     Notes
     -----
-    - The function assumes `qmap` contains indices starting from 1 
+    - The function assumes `qmap` contains indices starting from 1
       (i.e., it ignores index `0`).
-    - Clusters with zero pixels are handled by setting their normalization 
+    - Clusters with zero pixels are handled by setting their normalization
       factor to `1` to avoid division by zero.
     """
     qmap = qmap.view(-1)
@@ -139,7 +139,7 @@ class XpcsQPartitionMap(object):
         self.info_np = info_np
         self.info = info
         self.qinfo = qinfo
-    
+
     def describe(self):
         logger.info(f'qmap file: {self.fname}')
         logger.info(f'flag_sort: {self.flag_sort}')
@@ -148,7 +148,7 @@ class XpcsQPartitionMap(object):
             f"{self.masked_pixels}/"
             f"{self.masked_ratio * 100:.4f}%")
         # omit dq = 0 which is not used
-        logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}") 
+        logger.info(f"dq_map length: {np.unique(self.dqmap).size - 1}")
 
     def load(self, flag_fix=False):
         values = {}
@@ -164,7 +164,7 @@ class XpcsQPartitionMap(object):
             self.check_fix_qmap()
         self.det_size = self.mask.shape
         self.dq_dim = np.max(self.dqmap)
-        self.sq_dim = np.max(self.sqmap) 
+        self.sq_dim = np.max(self.sqmap)
         self.masked_pixels = int(np.sum(self.mask == 1))
         self.masked_ratio = self.masked_pixels / self.mask.size
 
@@ -285,8 +285,7 @@ class XpcsQPartitionMap(object):
             full_img[self.info['mask_idx_1d']] = saxs2d
         else:
             full_img = saxs2d
-
-        full_img = full_img.reshape(1, *self.det_size)
+        full_img = full_img.reshape(1, *self.det_size) * torch.from_numpy(self.mask).to(self.device)
         return full_img
 
     def normalize_multitau(self, res, save_G2=False):
