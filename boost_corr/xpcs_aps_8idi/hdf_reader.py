@@ -28,11 +28,15 @@ def put_results_in_hdf5(save_path, result, compression=None):
     """
     def create_dataset_with_compression(f, path, data):
         """Helper function to create dataset with appropriate compression"""
-        if isinstance(data, np.ndarray) and data.size > 1024 and compression is None:
+        if isinstance(data, np.ndarray) and data.size > 8192 and compression is None:
+            # chunks using the last two dimensions
+            if data.ndim >= 2:
+                    chunks = tuple([1] * (data.ndim - 2) + list(data.shape[-2:]))
+            else:
+                chunks = data.shape
             return f.create_dataset(path, data=data, 
-                                    compression='gzip',
-                                    compression_opts=4, 
-                                    chunks=True)
+                                    compression='lzf',
+                                    chunks=chunks)
         return f.create_dataset(path, data=data, compression=compression)
 
     def save_dict_to_group(group, dictionary):
