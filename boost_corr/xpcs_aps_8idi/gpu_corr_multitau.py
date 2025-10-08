@@ -27,6 +27,7 @@ def solve_multitau_base(
     verbose: bool = False,
     masked_ratio_threshold: float = 0.8,
     num_loaders: int = 16,
+    normalize_frame: bool = False,
     begin_frame: int = 0,
     end_frame: int = -1,
     avg_frame: int = 1,
@@ -77,6 +78,7 @@ def solve_multitau_base(
         auto_queue=True,
         device=device,
         mask_crop=qpm.mask_crop,
+        normalize_frame=normalize_frame,
     )
 
     if verbose:

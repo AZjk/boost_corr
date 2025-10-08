@@ -43,6 +43,7 @@ default_config = {
     "stride_frame": 1,
     "avg_frame": 1,
     "type": "Multitau",       # "Multitau", "Twotime", or "Both"
+    "normalize_frame": True,
     "dq_selection": "all",
     "verbose": False,
     "dry_run": False,         # Changed from "dryrun"
@@ -98,6 +99,14 @@ parser.add_argument(
     default=default_config['gpu_id'],
     help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific "
          "GPU. [default: %(default)s]"
+)
+
+parser.add_argument(
+    "-nf", "--normalize-frame",
+    type=int,
+    choices=[0, 1],
+    default=default_config['normalize_frame'],
+    help="1 to enable, 0 to disable frame-based normalization. [default: %(default)s]"
 )
 
 parser.add_argument(
@@ -189,6 +198,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+args.normalize_frame = bool(args.normalize_frame)
 kwargs = vars(args)
 
 if args.config is not None:

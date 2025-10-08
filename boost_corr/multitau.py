@@ -51,6 +51,7 @@ class MultitauCorrelator(object):
                  auto_queue=True,
                  mask_crop=None,
                  max_memory=36.0,
+                 normalize_frame=False,
                  max_count=7) -> None:
 
         self.det_size = det_size
@@ -64,9 +65,10 @@ class MultitauCorrelator(object):
             self.pixel_num = det_size[0] * det_size[1]
 
         self.frame_num = frame_num
+        self.normalize_frame = normalize_frame
 
-        assert (isinstance(queue_size, int))
-        assert (is_power_two(queue_size))
+        assert (isinstance(queue_size, int)), "queue_size must be an integer"
+        assert (is_power_two(queue_size)), "queue_size must be a power of 2"
         self.queue_size = queue_size
 
         tau_bin = gen_tau_bin(self.frame_num)
@@ -137,7 +139,8 @@ class MultitauCorrelator(object):
         dlist_uniq.sort()
         for x in dlist_uniq:
             logger.info(f'stage @ {dlist.count(x):02d}: {x}')
-        logger.info(f'max_memory is {self.max_memory}GB')
+        logger.info(f"max_memory:  {self.max_memory} GB")
+        logger.info(f"normalize frame to account for intensity fluctuation: {self.normalize_frame}")
 
     def reset(self):
         for n in range(self.levels_num):
@@ -257,7 +260,8 @@ class MultitauCorrelator(object):
             intt = torch.mean(self.ct[level][beg:end].float(), dim=1)
             self.intt.append(intt)
             self.saxs_2d += torch.sum(self.ct[level][beg:end].float(), dim=0)
-            self.ct[level][beg:end] /= intt.reshape(end - beg, 1)
+            if self.normalize_frame:
+                self.ct[level][beg:end] /= intt.reshape(end - beg, 1)
 
         for tau, tid, _ in self.tau_in_level[level]:
             sl1 = slice(beg - tau, end - tau)
