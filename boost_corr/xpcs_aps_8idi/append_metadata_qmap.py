@@ -1,3 +1,4 @@
+import os
 import sys
 import shutil
 import h5py
@@ -20,12 +21,13 @@ def append_metadata_qmap(output_fname, meta_fname=None, qmap_fname=None,
     """
     assert meta_type in ('nexus')
     # copy the metadata file
-    shutil.copy(meta_fname, output_fname)
+    shutil.copyfile(meta_fname, output_fname)
+    os.chmod(output_fname, 0o644)
     # copy_qmap(output_fname, qmap_fname)
     copy_qmap(source_file=qmap_fname, target_file=output_fname)
 
 
-def copy_qmap(source_file, target_file, source_group='/qmap', 
+def copy_qmap(source_file, target_file, source_group='/qmap',
               target_group='/xpcs/qmap'):
     """
     Copies a group from one HDF5 file to another with the option to rename the group.
@@ -36,7 +38,7 @@ def copy_qmap(source_file, target_file, source_group='/qmap',
         target_file (str): Path to the target HDF5 file.
         source_group (str): Name of the source group to copy.
         target_group (str): Name of the target group in the target file.
-    
+
     Returns:
     ----------
         None

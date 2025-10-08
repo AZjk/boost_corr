@@ -128,7 +128,6 @@ class XpcsResult:
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
         append_metadata_qmap(self.fname_temp, meta_fname, self.qmap_fname)
-        os.chmod(self.fname_temp, 0o644)
         self.append(self.analysis_config)
         return self
 
