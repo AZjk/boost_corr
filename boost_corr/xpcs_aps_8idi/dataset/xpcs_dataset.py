@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import logging
 import os
+import math
 
 
 np_torch_map = {
@@ -54,22 +55,58 @@ class XpcsDataset(object):
         self.dataset_type = None
         self.dtype_raw = None
 
-    def update_batch_info(self, frame_num):
+    def update_batch_info(self, frame_num: int) -> None:
+        """
+        Update batching settings.
+        """
+        def _resolve_index(idx: int, n: int) -> int:
+            """Python-slice-style resolution with clamping to [0, n]."""
+            if idx < 0:
+                idx = n + idx
+            return 0 if idx < 0 else (n if idx > n else idx)
+
+        # --- inputs & basic checks ---
         self.frame_num_raw = frame_num
-        if self.end_frame <= 0:
-            self.end_frame = frame_num
+        if frame_num < 0:
+            raise ValueError("frame_num must be non-negative")
 
-        tot = self.end_frame - self.begin_frame
-        eff_len = self.avg_frame * self.stride
-        tot = tot // eff_len * eff_len
-        end_frame = self.begin_frame + tot
-        if self.end_frame != end_frame:
-            logger.info('end_frame is rounded to the nearest number')
-            self.end_frame = end_frame
+        if getattr(self, "avg_frame", 1) <= 0 or getattr(self, "stride", 1) <= 0:
+            raise ValueError("avg_frame and stride must be positive")
 
-        self.frame_num = tot // eff_len
-        self.batch_num = (self.frame_num + self.batch_size -
-                          1) // self.batch_size
+        if getattr(self, "batch_size", 1) <= 0:
+            raise ValueError("batch_size must be positive")
+
+        # note: if end_frame is <= 0, it will use all frames after begin_frame
+        end = self.end_frame if self.end_frame > 0 else frame_num
+        end = min(frame_num, end)
+
+        # --- resolve indices like Python slices ---
+        begin = _resolve_index(self.begin_frame, frame_num)
+
+        if end < begin:
+            raise ValueError(f"end_frame [{end}] must be >= begin_frame [{begin}]")
+
+        # --- effective rounding to correlation block size ---
+        eff_len = int(self.avg_frame) * int(self.stride)
+        tot = end - begin
+        assert tot > 0, "No frames to process after applying begin/end_frame."
+        tot_rounded = (tot // eff_len) * eff_len
+        rounded_end = begin + tot_rounded
+
+        if rounded_end != end:
+            logger.info(
+                "end_frame rounded down from %d to %d to align with eff_len=%d.",
+                end, rounded_end, eff_len
+            )
+            end = rounded_end
+
+        # --- finalize & batch math ---
+        self.begin_frame = begin
+        self.end_frame = end
+
+        self.frame_num = (end - begin) // eff_len
+        self.batch_num = (self.frame_num + self.batch_size - 1) // self.batch_size 
+
 
     def update_mask_crop(self, new_mask):
         # some times the qmap's orientation is different from the dataset;

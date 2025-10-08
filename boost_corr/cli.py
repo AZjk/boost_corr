@@ -114,7 +114,8 @@ parser.add_argument(
     type=int,
     default=default_config['begin_frame'],
     help="Starting frame index (0-based) for correlation. Used to skip bad "
-         "initial frames. [default: %(default)s]"
+         "initial frames. If negative, it will use python slice stype to resolve the "
+         "start frames. [default: %(default)s]"
 )
 
 parser.add_argument(
