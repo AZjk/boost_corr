@@ -33,7 +33,8 @@ def get_metadata(meta_dir: str):
 
 
 def create_unique_file(
-    output_dir: str, meta_fname: str, overwrite: bool = False
+    output_dir: str, meta_fname: str, overwrite: bool = False,
+    prefix: str = None, suffix: str = None,
 ) -> str:
     """
     Create a unique filename for an HDF file, avoiding overwriting existing files.
@@ -67,7 +68,14 @@ def create_unique_file(
 
     # Ensure the filename has the .hdf extension
     name, ext = os.path.splitext(base_fname)
-    base_fname = name.rstrip("_metadata") + "_results.hdf"
+    name = name.rstrip("_metadata")
+
+    if prefix:
+        name = f"{prefix.rstrip('_')}_{name}"
+    if suffix:
+        name = f"{name}_{suffix.lstrip('_')}"
+
+    base_fname = name + "_results.hdf"
 
     # Create the full path
     fname = os.path.join(output_dir, base_fname)
@@ -96,6 +104,8 @@ class XpcsResult:
         rawdata_path=None,
         multitau_config=None,
         twotime_config=None,
+        prefix=None,
+        suffix=None,
     ) -> None:
         self.meta_dir = meta_dir
         self.qmap_fname = qmap_fname
@@ -106,6 +116,8 @@ class XpcsResult:
         self.fname_temp = None
         self.G2_fname_temp = None
         self.success = True
+        self.prefix = prefix
+        self.suffix = suffix
         self.analysis_config = {
             "rawdata_path": rawdata_path,
             "multitau_config": multitau_config or {},
@@ -119,7 +131,8 @@ class XpcsResult:
         meta_fname, meta_ftype = get_metadata(self.meta_dir)
         logger.info(f"metadata filename/type is {meta_fname} | {meta_ftype}")
         self.fname = create_unique_file(
-            self.output_dir, meta_fname, overwrite=self.overwrite
+            self.output_dir, meta_fname, overwrite=self.overwrite, prefix=self.prefix, 
+            suffix=self.suffix
         )
         self.G2_fname = os.path.splitext(self.fname)[0] + "_G2.hdf"
         self.fname_temp = self.fname + ".temp"

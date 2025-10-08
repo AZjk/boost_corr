@@ -36,6 +36,8 @@ def solve_multitau_base(
     save_G2: bool = False,
     analysis_kwargs: Optional[dict] = None,
     save_results: bool = True,
+    prefix: Optional[str] = None,
+    suffix: Optional[str] = None,
     **kwargs: Any,
 ) -> Union[str, None]:
 
@@ -112,6 +114,8 @@ def solve_multitau_base(
             overwrite=overwrite,
             multitau_config=analysis_kwargs,
             rawdata_path=os.path.realpath(raw),
+            prefix=prefix,
+            suffix=suffix
         ) as result_file:
             result_file.append(norm_scattering)
             result_file.append(norm_multitau)

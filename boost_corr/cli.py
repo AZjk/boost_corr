@@ -183,6 +183,21 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "-p", "--prefix",
+    type=str,
+    default=None,
+    help="prefix to add to the result filename"
+)
+
+parser.add_argument(
+    "-u", "--suffix",
+    type=str,
+    default=None,
+    help="suffix to add to the result filename"
+)
+
+
+parser.add_argument(
     "-w", "--overwrite",
     action="store_true",
     default=default_config['overwrite'],
