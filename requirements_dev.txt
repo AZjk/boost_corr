@@ -5,5 +5,5 @@ numpy
 psutil
 scikit-image
 tqdm
-pynvml
+nvidia-ml-py
 torch
