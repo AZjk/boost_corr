@@ -36,6 +36,7 @@ def solve_multitau_base(
     save_G2: bool = False,
     analysis_kwargs: Optional[dict] = None,
     save_results: bool = True,
+    num_partial_g2: int = 0,
     prefix: Optional[str] = None,
     suffix: Optional[str] = None,
     **kwargs: Any,
@@ -81,6 +82,7 @@ def solve_multitau_base(
         mask_crop=qpm.mask_crop,
         normalize_frame=normalize_frame,
         qpm=qpm,
+        num_partial_g2=num_partial_g2,
     )
 
     if verbose:

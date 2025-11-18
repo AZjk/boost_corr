@@ -54,7 +54,7 @@ class MultitauCorrelator(object):
         max_memory=36.0,
         normalize_frame=False,
         max_count=7,
-        compute_partial_g2=True,
+        num_partial_g2=0,
         qpm=None,
     ) -> None:
         self.det_size = det_size
@@ -120,8 +120,8 @@ class MultitauCorrelator(object):
         # pointer to the data enty in each level
         self.pt = [self.tau_rev] * levels_num
 
-        self.compute_partial_g2 = compute_partial_g2
-        if self.compute_partial_g2:
+        self.num_partial_g2 = num_partial_g2
+        if self.num_partial_g2 > 0:
             assert qpm is not None, (
                 "qpm must be provided when compute_partial_g2 is True"
             )
@@ -234,16 +234,20 @@ class MultitauCorrelator(object):
         # convert raw input (likely uint16) to float
         # prefer to pass an input with size of 1/N queue size
         # x = x.float()
-        prev_seg = self.current_frame // (self.frame_num // 10)
-        self.current_frame += x.shape[0]
-        next_seg = self.current_frame // (self.frame_num // 10)
-        flag_g2_part = next_seg > prev_seg
+        if self.num_partial_g2 > 0:
+            prev_seg = self.current_frame // (self.frame_num // self.num_partial_g2)
+            self.current_frame += x.shape[0]
+            next_seg = self.current_frame // (self.frame_num // self.num_partial_g2)
+            flag_g2_part = next_seg > prev_seg
 
-        if self.compute_partial_g2 and flag_g2_part:
-            g2_part_2d = self.calculate_partial_g2()
-            g2_part_dict = self.qpm.normalize_multitau(g2_part_2d, save_G2=False)
-            g2_part_dict["num_frames"] = self.act_length[0]
-            self.g2_partial.append(g2_part_dict)
+            if flag_g2_part:
+                g2_part_2d = self.calculate_partial_g2()
+                g2_part_dict = self.qpm.normalize_multitau(g2_part_2d, save_G2=False)
+                g2_part_dict["num_frames"] = self.act_length[0]
+                self.g2_partial.append(g2_part_dict)
+        else:
+            self.current_frame += x.shape[0]
+            flag_g2_part = False
 
         last_flag = self.current_frame == self.frame_num
 
@@ -290,7 +294,7 @@ class MultitauCorrelator(object):
             xy = torch.sum(self.ct[level][sl1] * self.ct[level][sl2], dim=0)
             self.g2[tid, 0] += xy
 
-            if self.compute_partial_g2:
+            if self.num_partial_g2 > 0:
                 if self.act_length[tid] == 0:
                     self.act_length[tid] = end - beg - tau
                 else:
@@ -333,8 +337,8 @@ class MultitauCorrelator(object):
         return x
 
     def get_partial_g2(self):
-        if self.compute_partial_g2 is False:
-            raise ValueError("compute_partial_g2 must be True to get partial G2")
+        if self.num_partial_g2 <= 0:
+            return {"g2_partial": None}
 
         unique_g2s = []
         for g2_part_dict in self.g2_partial:
@@ -358,7 +362,7 @@ class MultitauCorrelator(object):
 
     def calculate_partial_g2(self):
         # rescale the average and add total flux to IP and IF
-        if self.compute_partial_g2 is False:
+        if self.num_partial_g2 <= 0:
             raise ValueError("compute_partial_g2 must be True to get partial G2")
 
         g2_part = self.act_g2.clone().detach()
