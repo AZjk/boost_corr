@@ -40,7 +40,6 @@ def solve_multitau_base(
     suffix: Optional[str] = None,
     **kwargs: Any,
 ) -> Union[str, None]:
-
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
 
@@ -81,6 +80,7 @@ def solve_multitau_base(
         device=device,
         mask_crop=qpm.mask_crop,
         normalize_frame=normalize_frame,
+        qpm=qpm,
     )
 
     if verbose:
@@ -103,6 +103,7 @@ def solve_multitau_base(
     output_scattering, output_multitau = xb.get_results()
     norm_scattering = qpm.normalize_scattering(output_scattering)
     norm_multitau = qpm.normalize_multitau(output_multitau, save_G2=save_G2)
+    part_multitau = xb.get_partial_g2()
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
@@ -115,12 +116,13 @@ def solve_multitau_base(
             multitau_config=analysis_kwargs,
             rawdata_path=os.path.realpath(raw),
             prefix=prefix,
-            suffix=suffix
+            suffix=suffix,
         ) as result_file:
             result_file.append(norm_scattering)
             result_file.append(norm_multitau)
+            result_file.append(part_multitau)
 
-        logger.info(f"multitau analysis finished")
+        logger.info("multitau analysis finished")
         return result_file.fname
     else:
         result_file_kwargs = {

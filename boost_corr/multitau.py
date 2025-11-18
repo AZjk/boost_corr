@@ -5,7 +5,7 @@ import logging
 import time
 
 from tqdm import tqdm, trange
-from .help_functions import (gen_tau_bin, sort_tau_bin, is_power_two)
+from .help_functions import gen_tau_bin, sort_tau_bin, is_power_two
 from torch.utils.data import DataLoader
 # import matplotlib.pyplot as plt
 # import skimage.io as skio
@@ -36,24 +36,27 @@ def compute_dtype(max_count, levels):
 
 def compute_queue(levels_num, queue_size, queue_level):
     x = np.arange(levels_num, dtype=np.int64)
-    y = queue_size // (2**(x // queue_level))
+    y = queue_size // (2 ** (x // queue_level))
     y[y < 8] = 8
     return y
 
 
 class MultitauCorrelator(object):
-    def __init__(self,
-                 det_size,
-                 frame_num,
-                 device='cpu',
-                 queue_size: int = 64,
-                 queue_level: int = 4,
-                 auto_queue=True,
-                 mask_crop=None,
-                 max_memory=36.0,
-                 normalize_frame=False,
-                 max_count=7) -> None:
-
+    def __init__(
+        self,
+        det_size,
+        frame_num,
+        device="cpu",
+        queue_size: int = 64,
+        queue_level: int = 4,
+        auto_queue=True,
+        mask_crop=None,
+        max_memory=36.0,
+        normalize_frame=False,
+        max_count=7,
+        compute_partial_g2=True,
+        qpm=None,
+    ) -> None:
         self.det_size = det_size
         self.is_sparse = False
         self.max_memory = max_memory
@@ -67,8 +70,8 @@ class MultitauCorrelator(object):
         self.frame_num = frame_num
         self.normalize_frame = normalize_frame
 
-        assert (isinstance(queue_size, int)), "queue_size must be an integer"
-        assert (is_power_two(queue_size)), "queue_size must be a power of 2"
+        assert isinstance(queue_size, int), "queue_size must be an integer"
+        assert is_power_two(queue_size), "queue_size must be a power of 2"
         self.queue_size = queue_size
 
         tau_bin = gen_tau_bin(self.frame_num)
@@ -97,9 +100,11 @@ class MultitauCorrelator(object):
 
         for n in range(levels_num):
             curr_tau_all = self.tau_rev + queue[n]
-            self.ct[n] = torch.zeros(size=(curr_tau_all, self.pixel_num),
-                                     dtype=self.dtype_list[n][0],
-                                     device=self.device)
+            self.ct[n] = torch.zeros(
+                size=(curr_tau_all, self.pixel_num),
+                dtype=self.dtype_list[n][0],
+                device=self.device,
+            )
             self.tau_all.append(curr_tau_all)
             # print(self.dtype_list[n])
 
@@ -107,11 +112,22 @@ class MultitauCorrelator(object):
         self.ct_overflow = torch.zeros(size=(self.pixel_num,), device=self.device)
 
         # G2, IP and IF
-        self.g2 = torch.zeros(size=(self.tau_num, 3, self.pixel_num),
-                              dtype=torch.float32,
-                              device=self.device)
+        self.g2 = torch.zeros(
+            size=(self.tau_num, 3, self.pixel_num),
+            dtype=torch.float32,
+            device=self.device,
+        )
         # pointer to the data enty in each level
         self.pt = [self.tau_rev] * levels_num
+
+        self.compute_partial_g2 = compute_partial_g2
+        if self.compute_partial_g2:
+            assert qpm is not None, (
+                "qpm must be provided when compute_partial_g2 is True"
+            )
+            self.act_length = np.zeros(self.tau_num)
+            self.qpm = qpm
+            self.act_g2 = torch.zeros_like(self.g2)
 
         # advanced flag
         self.ad = [False] * levels_num
@@ -124,23 +140,23 @@ class MultitauCorrelator(object):
         self.intt = []
         self.saxs_2d = torch.zeros_like(self.ct_overflow)
         self.saxs_2d_par = []
+        self.g2_partial = []
 
         self.levels = levels
         self.tau_in_level = tau_in_level
         self.current_frame = 0
 
     def describe(self):
-        logger.info(
-            f'queue information (auto, size, level): {self.queue_info}')
-        dlist = [
-            str(self.dtype_list[n][0]) for n in range(len(self.dtype_list))
-        ]
+        logger.info(f"queue information (auto, size, level): {self.queue_info}")
+        dlist = [str(self.dtype_list[n][0]) for n in range(len(self.dtype_list))]
         dlist_uniq = list(set(dlist))
         dlist_uniq.sort()
         for x in dlist_uniq:
-            logger.info(f'stage @ {dlist.count(x):02d}: {x}')
+            logger.info(f"stage @ {dlist.count(x):02d}: {x}")
         logger.info(f"max_memory:  {self.max_memory} GB")
-        logger.info(f"normalize frame to account for intensity fluctuation: {self.normalize_frame}")
+        logger.info(
+            f"normalize frame to account for intensity fluctuation: {self.normalize_frame}"
+        )
 
     def reset(self):
         for n in range(self.levels_num):
@@ -170,7 +186,7 @@ class MultitauCorrelator(object):
         g2_sz = 4 * self.pixel_num / (1024**3) * self.tau_num * 3
 
         max_memory = self.max_memory / (1 + overhead)
-        max_memory -= (np.sum(sz) * self.tau_rev + g2_sz)
+        max_memory -= np.sum(sz) * self.tau_rev + g2_sz
 
         # choose a starting level not equal to 1 so the flush of different
         # levels don't happen at the same time.
@@ -180,14 +196,12 @@ class MultitauCorrelator(object):
         def get_size(*args):
             return np.sum(compute_queue(*args) * sz)
 
-        while get_size(self.levels_num, queue_size * 2,
-                       queue_level) <= max_memory:
+        while get_size(self.levels_num, queue_size * 2, queue_level) <= max_memory:
             queue_size *= 2
             if queue_size > self.frame_num:
                 break
 
-        while get_size(self.levels_num, queue_size,
-                       queue_level + 1) <= max_memory:
+        while get_size(self.levels_num, queue_size, queue_level + 1) <= max_memory:
             queue_level += 1
             if queue_level >= self.levels_num:
                 break
@@ -210,11 +224,9 @@ class MultitauCorrelator(object):
             self.__process_dense__(*args)
         else:
             self.__process_sparse__(*args)
-    
+
     def __process_sparse__(self, index, frame, count, size):
-        x = torch.zeros((size, self.pixel_num),
-                        count.dtype,
-                        device=self.device)
+        x = torch.zeros((size, self.pixel_num), count.dtype, device=self.device)
         x[frame.long(), index.long()] = count
         self.__process_dense__(x)
 
@@ -222,14 +234,23 @@ class MultitauCorrelator(object):
         # convert raw input (likely uint16) to float
         # prefer to pass an input with size of 1/N queue size
         # x = x.float()
-
+        prev_seg = self.current_frame // (self.frame_num // 10)
         self.current_frame += x.shape[0]
-        last_flag = (self.current_frame == self.frame_num)
+        next_seg = self.current_frame // (self.frame_num // 10)
+        flag_g2_part = next_seg > prev_seg
+
+        if self.compute_partial_g2 and flag_g2_part:
+            g2_part_2d = self.calculate_partial_g2()
+            g2_part_dict = self.qpm.normalize_multitau(g2_part_2d, save_G2=False)
+            g2_part_dict["num_frames"] = self.act_length[0]
+            self.g2_partial.append(g2_part_dict)
+
+        last_flag = self.current_frame == self.frame_num
 
         for level in self.levels:
             if x is not None:
                 pt0 = self.pt[level]
-                self.ct[level][pt0:pt0 + x.shape[0]] = x
+                self.ct[level][pt0 : pt0 + x.shape[0]] = x
                 self.pt[level] += x.shape[0]
 
             if self.pt[level] != self.tau_all[level] and not last_flag:
@@ -269,6 +290,14 @@ class MultitauCorrelator(object):
             xy = torch.sum(self.ct[level][sl1] * self.ct[level][sl2], dim=0)
             self.g2[tid, 0] += xy
 
+            if self.compute_partial_g2:
+                if self.act_length[tid] == 0:
+                    self.act_length[tid] = end - beg - tau
+                else:
+                    self.act_length[tid] += end - beg
+                self.act_g2[tid, 0] += xy
+                self.act_g2[tid, 1] += torch.sum(self.ct[level][sl1], dim=0)
+
         # deal with IP; it may happen when the channel advances or it's the
         # last batch and needs flush;
         if not self.ad[level]:
@@ -293,15 +322,59 @@ class MultitauCorrelator(object):
         self.pt[level] -= avg_len
         avg_sl = slice(beg, beg + avg_len)
 
-        x = torch.sum(self.ct[level][avg_sl].view(avg_len // 2, 2,
-                                                  self.pixel_num),
-                      dim=1)
+        x = torch.sum(
+            self.ct[level][avg_sl].view(avg_len // 2, 2, self.pixel_num), dim=1
+        )
 
         # copy the ending to buffer
         tmp = self.ct[level][avg_len:end].clone().detach()
-        self.ct[level][0:end - avg_len] = tmp
+        self.ct[level][0 : end - avg_len] = tmp
 
         return x
+
+    def get_partial_g2(self):
+        if self.compute_partial_g2 is False:
+            raise ValueError("compute_partial_g2 must be True to get partial G2")
+
+        unique_g2s = []
+        for g2_part_dict in self.g2_partial:
+            if len(unique_g2s) > 0 and np.allclose(
+                g2_part_dict["g2"], unique_g2s[-1]["g2"]
+            ):
+                continue
+            else:
+                unique_g2s.append(g2_part_dict)
+        g2 = np.stack([g2_part["g2"] for g2_part in unique_g2s], axis=0)
+        g2[g2 == 0] = np.nan
+
+        g2_err = np.stack([g2_part["g2_err"] for g2_part in unique_g2s], axis=0)
+        labels = np.array([g2_part["num_frames"] for g2_part in unique_g2s])
+        result = {
+            "g2_partial": g2,
+            "g2_partial_err": g2_err,
+            "g2_partial_labels": labels,
+        }
+        return result
+
+    def calculate_partial_g2(self):
+        # rescale the average and add total flux to IP and IF
+        if self.compute_partial_g2 is False:
+            raise ValueError("compute_partial_g2 must be True to get partial G2")
+
+        g2_part = self.act_g2.clone().detach()
+        for level in self.levels:
+            for _, tid, _ in self.tau_in_level[level]:
+                eff_length = self.act_length[tid]
+                g2_part[tid, 0] /= eff_length * 2 ** (level * 2)
+                g2_part[tid, 1] /= eff_length * 2**level
+                g2_part[tid, 2] = g2_part[tid, 1]
+
+        output_multitau = {
+            "G2": g2_part.float(),
+            "mask_crop": self.mask_crop,
+            "tau": self.tau_bin[0, :],
+        }
+        return output_multitau
 
     def post_process(self):
         # rescale the average and add total flux to IP and IF
@@ -314,7 +387,7 @@ class MultitauCorrelator(object):
             # IP = (x / scl)             / eff_len  -> eff_len * scl
             # IF = (y / scl)             / eff_len  -> eff_len * scl
             for _, tid, eff_length in self.tau_in_level[level]:
-                self.g2[tid, 0] /= (eff_length * 2**(level * 2))
+                self.g2[tid, 0] /= eff_length * 2 ** (level * 2)
                 self.g2[tid, 1:3] += tot
                 self.g2[tid, 1:3] /= eff_length * 2**level
 
@@ -327,27 +400,25 @@ class MultitauCorrelator(object):
             self.saxs_2d_par = torch.unsqueeze(self.saxs_2d, 0)
         return
 
-    def process_dataset(self,
-                        ds,
-                        verbose=True,
-                        use_loader=False,
-                        num_workers=16):
+    def process_dataset(self, ds, verbose=True, use_loader=False, num_workers=16):
         if not use_loader:
             xrange = trange if verbose else range
             for n in xrange(len(ds)):
                 self.process(ds[n])
         else:
             # only pin memory if using GPU for computing
-            pin_memory = (self.device != 'cpu')
-            dl = DataLoader(ds,
-                            batch_size=None,
-                            pin_memory=pin_memory,
-                            num_workers=num_workers,
-                            prefetch_factor=4)
-            logger.info(f'using {num_workers} workers to load data')
-            
+            pin_memory = self.device != "cpu"
+            dl = DataLoader(
+                ds,
+                batch_size=None,
+                pin_memory=pin_memory,
+                num_workers=num_workers,
+                prefetch_factor=4,
+            )
+            logger.info(f"using {num_workers} workers to load data")
+
             if verbose:
-                container = tqdm(dl, total=len(ds), desc='progress')
+                container = tqdm(dl, total=len(ds), desc="progress")
             else:
                 container = dl
 
@@ -363,23 +434,23 @@ class MultitauCorrelator(object):
         intt = torch.vstack([tline, intt])
 
         output_scattering = {
-            'saxs_2d': self.saxs_2d.float(),
-            'saxs_2d_par': self.saxs_2d_par.float(),
-            'intensity_vs_time': intt.float(),
-            'mask_crop': self.mask_crop,
+            "saxs_2d": self.saxs_2d.float(),
+            "saxs_2d_par": self.saxs_2d_par.float(),
+            "intensity_vs_time": intt.float(),
+            "mask_crop": self.mask_crop,
         }
 
         output_multitau = {
-            'G2': self.g2.float(),
-            'mask_crop': self.mask_crop,
-            'tau': self.tau_bin[0, :]
+            "G2": self.g2.float(),
+            "mask_crop": self.mask_crop,
+            "tau": self.tau_bin[0, :],
         }
         return output_scattering, output_multitau
 
 
 def read_data(
-        det_size,
-        fname="../xpcs_data_simulation/simulation_0010k_sparse_0.005.bin"):
+    det_size, fname="../xpcs_data_simulation/simulation_0010k_sparse_0.005.bin"
+):
     det_size_1d = det_size[0] * det_size[1]
     data = np.fromfile(fname, dtype=np.uint16)
     data = data.astype(np.int16)
@@ -387,9 +458,11 @@ def read_data(
     return data, data.shape[0]
 
 
-def example(queue_size=512,
-            fname='simulation_0010k_sparse_0.005.hdf',
-            data_dir='../xpcs_data_simulation'):
+def example(
+    queue_size=512,
+    fname="simulation_0010k_sparse_0.005.hdf",
+    data_dir="../xpcs_data_simulation",
+):
     path = os.path.join(data_dir, fname)
     # detector = XpcsDetector(path)
     # data, frame_num = read_data(det_size=(512, 512))
@@ -399,24 +472,23 @@ def example(queue_size=512,
     det_size = (1813, 1558)
     frame_num = 100000
 
-    logger.info('frame_num = %d', frame_num)
-    logger.info('queue_size = %d', queue_size)
-    logger.info('det_size = %s', det_size)
-    xb = MultitauCorrelator(det_size=det_size,
-                            frame_num=frame_num,
-                            queue_size=queue_size,
-                            device='cuda:1')
+    logger.info("frame_num = %d", frame_num)
+    logger.info("queue_size = %d", queue_size)
+    logger.info("det_size = %s", det_size)
+    xb = MultitauCorrelator(
+        det_size=det_size, frame_num=frame_num, queue_size=queue_size, device="cuda:1"
+    )
     xb.debug()
     stime = time.perf_counter()
-    for n in tqdm(range(frame_num // batch_size + 1), colour='green'):
+    for n in tqdm(range(frame_num // batch_size + 1), colour="green"):
         sz = min(frame_num, (n + 1) * batch_size) - batch_size * n
-        x = torch.ones((sz, det_size[0] * det_size[1]),
-                       device=xb.device,
-                       dtype=torch.bfloat16)
+        x = torch.ones(
+            (sz, det_size[0] * det_size[1]), device=xb.device, dtype=torch.bfloat16
+        )
         xb.process(x)
 
     etime = time.perf_counter()
-    logger.info('processing frequency is %.4f' % (frame_num / (etime - stime)))
+    logger.info("processing frequency is %.4f" % (frame_num / (etime - stime)))
 
     xb.post_process()
     return
@@ -428,7 +500,7 @@ def test_dtype():
     compute_dtype(max_count, levels)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # for queue_size in 2 ** np.arange(3, 15):
     #     example(queue_size=queue_size)
     example(queue_size=512)
