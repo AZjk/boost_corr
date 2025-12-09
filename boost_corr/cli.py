@@ -223,6 +223,12 @@ parser.add_argument(
     help="suffix to add to the result filename",
 )
 
+parser.add_argument(
+    "--bin-time-s",
+    type=float,
+    default=1e-6,
+    help="time bin size in seconds for Timepix4 data. [default: %(default)s]",
+)
 
 parser.add_argument(
     "-w",

@@ -39,6 +39,7 @@ def solve_multitau_base(
     num_partial_g2: int = 0,
     prefix: Optional[str] = None,
     suffix: Optional[str] = None,
+    bin_time_s: float = 1e-6,
     **kwargs: Any,
 ) -> Union[str, None]:
     log_level = logging.INFO if verbose else logging.ERROR
@@ -64,6 +65,7 @@ def solve_multitau_base(
         begin_frame=begin_frame,
         end_frame=end_frame,
         stride_frame=stride_frame,
+        bin_time_s=bin_time_s,
     )
 
     # in some detectors/configurations, the qmap is rotated
@@ -123,7 +125,8 @@ def solve_multitau_base(
             result_file.append(norm_scattering)
             result_file.append(norm_multitau)
             result_file.append(part_multitau)
-
+            if dset.dataset_type == "Timepix4Dataset":
+                result_file.correct_t0_for_timepix4(bin_time_s)
         logger.info("multitau analysis finished")
         return result_file.fname
     else:

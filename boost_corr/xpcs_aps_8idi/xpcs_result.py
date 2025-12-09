@@ -33,8 +33,11 @@ def get_metadata(meta_dir: str):
 
 
 def create_unique_file(
-    output_dir: str, meta_fname: str, overwrite: bool = False,
-    prefix: str = None, suffix: str = None,
+    output_dir: str,
+    meta_fname: str,
+    overwrite: bool = False,
+    prefix: str = None,
+    suffix: str = None,
 ) -> str:
     """
     Create a unique filename for an HDF file, avoiding overwriting existing files.
@@ -131,8 +134,11 @@ class XpcsResult:
         meta_fname, meta_ftype = get_metadata(self.meta_dir)
         logger.info(f"metadata filename/type is {meta_fname} | {meta_ftype}")
         self.fname = create_unique_file(
-            self.output_dir, meta_fname, overwrite=self.overwrite, prefix=self.prefix, 
-            suffix=self.suffix
+            self.output_dir,
+            meta_fname,
+            overwrite=self.overwrite,
+            prefix=self.prefix,
+            suffix=self.suffix,
         )
         self.G2_fname = os.path.splitext(self.fname)[0] + "_G2.hdf"
         self.fname_temp = self.fname + ".temp"
@@ -159,6 +165,16 @@ class XpcsResult:
             raise
         else:
             self.success = True and self.success
+
+    def correct_t0_for_timepix4(self, t0):
+        """
+        Correct the t0 value in the multitau configuration for Timepix4 data.
+        """
+        logger.info(f"Correcting t0 for Timepix4 data. {t0=} s")
+        with h5py.File(self.fname_temp, "r+") as f:
+            if "/entry/instrument/detector_1/frame_time" in f:
+                del f["/entry/instrument/detector_1/frame_time"]
+            f["/entry/instrument/detector_1/frame_time"] = t0
 
     def append_and_link_G2(self, G2_dict):
         """
