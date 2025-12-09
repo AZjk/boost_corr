@@ -44,7 +44,7 @@ def create_dataset(
             dataset_method = ImmDataset
             use_loader = False
             batch_size = 8
-    elif ext == ".tpx":
+    elif raw_fname.endswith((".tpx", ".tpx.000", ".tpx.001", ".tpx.002")):
         from .timepix4_handler import TimepixAnalysisDataset
 
         dataset_method = TimepixAnalysisDataset
