@@ -15,13 +15,14 @@ class TimepixAnalysisDataset(XpcsDataset):
         dtype=np.uint8,
         total_frames=None,
         bin_time_s=1e-6,
+        run_config_path=None,
         **kwargs,
     ):
         super(TimepixAnalysisDataset, self).__init__(*args, dtype=dtype, **kwargs)
         self.dataset_type = "Timepix4Dataset"
         self.is_sparse = True
         self.dtype = np.uint8
-        self.raw_dataset = TimepixRawDataset(self.fname)
+        self.raw_dataset = TimepixRawDataset(self.fname, run_config_path)
         self.update_det_size(self.raw_dataset.det_size)
 
         self.ifc_list, self.mem_addr_list = self.read_data(

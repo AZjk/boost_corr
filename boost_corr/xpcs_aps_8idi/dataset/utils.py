@@ -15,6 +15,7 @@ def create_dataset(
     end_frame,
     stride_frame,
     bin_time_s=1e-6,
+    run_config_path=None,
 ):
     if not os.path.isfile(raw_fname):
         raise FileNotFoundError(f"The raw_file '{raw_fname}' does not exist.")
@@ -63,6 +64,7 @@ def create_dataset(
         end_frame=end_frame,
         stride_frame=stride_frame,
         bin_time_s=bin_time_s,
+        run_config_path=run_config_path,
     )
 
     return dset, use_loader

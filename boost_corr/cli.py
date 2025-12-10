@@ -231,6 +231,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--run-config-path",
+    type=str,
+    default=None,
+    help="Path to the run configuration file for Timepix4 data. [default: %(default)s]",
+)
+
+parser.add_argument(
     "-w",
     "--overwrite",
     action="store_true",

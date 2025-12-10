@@ -40,6 +40,7 @@ def solve_multitau_base(
     prefix: Optional[str] = None,
     suffix: Optional[str] = None,
     bin_time_s: float = 1e-6,
+    run_config_path=None,
     **kwargs: Any,
 ) -> Union[str, None]:
     log_level = logging.INFO if verbose else logging.ERROR
@@ -66,6 +67,7 @@ def solve_multitau_base(
         end_frame=end_frame,
         stride_frame=stride_frame,
         bin_time_s=bin_time_s,
+        run_config_path=run_config_path,
     )
 
     # in some detectors/configurations, the qmap is rotated
