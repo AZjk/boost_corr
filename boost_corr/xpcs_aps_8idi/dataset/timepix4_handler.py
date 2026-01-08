@@ -53,9 +53,10 @@ class TimepixAnalysisDataset(XpcsDataset):
     def read_data(self, total_frames=None, bin_time_s=1e-6):
         ifc_list = self.raw_dataset.apply_time_binning(bin_time_s)
 
-        num_frames = max([frame[-1] + 1 for _, frame, _ in ifc_list])
+        # the last frame is dropped to avoid partial frames
+        num_frames = max([frame[-1] for _, frame, _ in ifc_list])
         # update frame_num and batch_num
-        self.update_batch_info(num_frames + 1)
+        self.update_batch_info(num_frames)
 
         all_index = np.arange(0, self.frame_num_raw + 2)
         all_index[-1] = self.frame_num_raw
@@ -76,7 +77,7 @@ class TimepixAnalysisDataset(XpcsDataset):
         device = ifc[0].device
 
         pixel_num = self.raw_dataset.mod_size[0] * self.raw_dataset.mod_size[1]
-        x = torch.zeros(size, pixel_num, dtype=torch.uint8, device=device)
+        x = torch.zeros(size, pixel_num, dtype=torch.bfloat16, device=device)
         if self.stride == 1:
             # the data is continuous in RAM; convert by batch
             sla, slb = (
@@ -84,12 +85,14 @@ class TimepixAnalysisDataset(XpcsDataset):
                 self.mem_addr_list[module_index][end],
             )
             a, b = sla.start, slb.start
-            x[ifc[1][a:b].long() - beg, ifc[0][a:b].long()] = ifc[2][a:b]
+            x[ifc[1][a:b].long() - beg, ifc[0][a:b].long()] = ifc[2][a:b].to(
+                torch.bfloat16
+            )
         else:
             # the data is discrete in RAM; convert frame by frame
             for n, idx in enumerate(np.arange(beg, end, self.stride)):
                 sl = self.mem_addr_list[idx]
-                x[n, ifc[0][sl].long()] = ifc[2][sl]
+                x[n, ifc[0][sl].long()] = ifc[2][sl].to(torch.bfloat16)
 
         x = x.to(self.device)
         return x
