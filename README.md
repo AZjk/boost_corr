@@ -9,7 +9,8 @@ A high-performance correlation (multi-tau/two-time) package for X-ray Photon Cor
 
 - **High Performance**: GPU-accelerated correlation computation using PyTorch
 - **Flexible**: Supports both multi-tau and two-time correlation analysis
-- **Multiple Formats**: Handles IMM, Rigaku, and HDF5 data formats
+- **Multiple Formats**: Handles IMM, Rigaku, HDF5, and Timepix4 data formats
+- **Timepix4 Support**: Native support for Timepix4 detectors with configurable time binning
 - **CPU Fallback**: Automatic fallback to CPU when GPU is unavailable
 - **Command-line Interface**: Easy-to-use CLI for batch processing
 - **Python API**: Programmatic access for custom workflows
@@ -204,6 +205,42 @@ result = solve_multitau(
 )
 ```
 
+## Timepix4 Detector Support
+
+boost-corr provides native support for Timepix4 detectors with advanced features:
+
+### Basic Timepix4 Usage
+
+```bash
+boost_corr -t Multitau -i 0 \
+  -r /data/sample_001.tpx \
+  -q /data/qmap.h5 \
+  -o /output \
+  -v
+```
+
+### Multi-chip Timepix4 Configuration
+
+For multi-chip setups (e.g., `.tpx.000`, `.tpx.001`, `.tpx.002`), provide a run configuration file:
+
+```bash
+boost_corr -t Multitau -i 0 \
+  -r /data/sample_001.tpx.000 \
+  -q /data/qmap.h5 \
+  -o /output \
+  --run-config /data/run_config.json \
+  -v
+```
+
+The run configuration file specifies chip layout and time binning parameters. See the [timepix_dataset](https://github.com/AZjk/timepix_dataset) package for configuration details.
+
+### Key Features
+
+- **Sparse Data Handling**: Efficient processing of photon-counting sparse data
+- **Time Binning**: Configurable time binning (default: 1 μs)
+- **Memory Optimization**: Automatic GPU/CPU memory management based on data size
+- **bfloat16 Precision**: Optimized data type for GPU performance
+
 ## GPU Scheduling
 
 For automatic GPU selection on multi-GPU systems:
@@ -223,9 +260,13 @@ This will automatically select an available GPU with sufficient memory.
 
 ## Supported Data Formats
 
-- **HDF5**: Standard XPCS HDF5 format
-- **IMM**: APS 8-ID-I IMM format
-- **Rigaku**: Rigaku detector format
+- **HDF5**: Standard XPCS HDF5 format (`.h5`, `.hdf`, `.hdf5`)
+- **IMM**: APS 8-ID-I IMM format (`.imm`)
+- **Rigaku**: Rigaku detector format (`.bin`, `.bin.000`)
+- **Timepix4**: Amsterdam Scientific Instruments Timepix4 detector (`.tpx`, `.tpx.000`, `.tpx.001`, `.tpx.002`)
+  - Supports single and multi-chip configurations
+  - Configurable time binning for photon-counting data
+  - Automatic sparse-to-dense conversion with bfloat16 optimization
 
 ## Output Files
 
