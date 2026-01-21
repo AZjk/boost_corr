@@ -16,21 +16,22 @@ logger = logging.getLogger(__name__)
 
 
 class XpcsDataset(object):
-    """
-    """
-    def __init__(self,
-                 fname,
-                 begin_frame=0,
-                 end_frame=-1,
-                 stride_frame=1,
-                 avg_frame=1,
-                 batch_size=128,
-                 det_size=(512, 1024),
-                 device='cuda:0',
-                 use_loader=False,
-                 dtype=np.uint8,
-                 mask_crop=None):
+    """ """
 
+    def __init__(
+        self,
+        fname,
+        begin_frame=0,
+        end_frame=-1,
+        stride_frame=1,
+        avg_frame=1,
+        batch_size=128,
+        det_size=(512, 1024),
+        device="cuda:0",
+        use_loader=False,
+        dtype=np.uint8,
+        mask_crop=None,
+    ):
         self.fname = fname
         self.raw_size = os.path.getsize(fname) / (1024**2)
         self.det_size = det_size
@@ -59,6 +60,7 @@ class XpcsDataset(object):
         """
         Update batching settings.
         """
+
         def _resolve_index(idx: int, n: int) -> int:
             """Python-slice-style resolution with clamping to [0, n]."""
             if idx < 0:
@@ -96,7 +98,9 @@ class XpcsDataset(object):
         if rounded_end != end:
             logger.info(
                 "end_frame rounded down from %d to %d to align with eff_len=%d.",
-                end, rounded_end, eff_len
+                end,
+                rounded_end,
+                eff_len,
             )
             end = rounded_end
 
@@ -105,8 +109,7 @@ class XpcsDataset(object):
         self.end_frame = end
 
         self.frame_num = (end - begin) // eff_len
-        self.batch_num = (self.frame_num + self.batch_size - 1) // self.batch_size 
-
+        self.batch_num = (self.frame_num + self.batch_size - 1) // self.batch_size
 
     def update_mask_crop(self, new_mask):
         # some times the qmap's orientation is different from the dataset;
@@ -118,7 +121,7 @@ class XpcsDataset(object):
             self.mask_crop = new_mask
 
     def update_det_size(self, det_size):
-        self.det_size = det_size
+        self.det_size = tuple(det_size)
         self.pixel_num = self.det_size[0] * self.det_size[1]
 
     def get_raw_index(self, idx):
@@ -139,27 +142,36 @@ class XpcsDataset(object):
     def get_description(self):
         result = {}
         for key in [
-                'fname', 'frame_num_raw', 'is_sparse', 'frame_num', 'det_size',
-                'device', 'batch_size', 'batch_num', 'dataset_type'
+            "fname",
+            "frame_num_raw",
+            "is_sparse",
+            "frame_num",
+            "det_size",
+            "device",
+            "batch_size",
+            "batch_num",
+            "dataset_type",
         ]:
             result[key] = self.__dict__[key]
-        result['frame_info'] = ('(begin, end, stride, avg) = ('
-                                f'{self.begin_frame}, {self.end_frame}, '
-                                f'{self.stride}, {self.avg_frame})')
+        result["frame_info"] = (
+            "(begin, end, stride, avg) = ("
+            f"{self.begin_frame}, {self.end_frame}, "
+            f"{self.stride}, {self.avg_frame})"
+        )
         return result
 
     def describe(self):
         for key, val in self.get_description().items():
-            logger.info(f'{key}: {val}')
+            logger.info(f"{key}: {val}")
 
         if self.mask_crop is not None:
             valid_size = self.mask_crop.shape[0]
         else:
             valid_size = self.pixel_num
-        logger.info(f'dtype: {self.dtype}')
-        logger.info(f'valid_size: {valid_size}')
-        logger.info(f'sparsity: {self.get_sparsity():.4f}')
-        logger.info(f'raw dataset file size: {self.raw_size:.2f} MB')
+        logger.info(f"dtype: {self.dtype}")
+        logger.info(f"valid_size: {valid_size}")
+        logger.info(f"sparsity: {self.get_sparsity():.4f}")
+        logger.info(f"raw dataset file size: {self.raw_size:.2f} MB")
 
     def __len__(self):
         return self.batch_num
@@ -182,7 +194,7 @@ class XpcsDataset(object):
         convert to rigaku binary format
         """
         offset = 0
-        fid = open(fname, 'a')
+        fid = open(fname, "a")
         for n in range(self.batch_num):
             x = self.__getitem__(n)
             idx = np.nonzero(x)
@@ -205,11 +217,11 @@ class XpcsDataset(object):
             x = np.zeros((size, self.pixel_num), dtype=self.dtype)
             x[frame, index] = count
         else:
-            x = torch.zeros((size, self.pixel_num),
-                            dtype=np_torch_map[self.dtype],
-                            device=index.device)
+            x = torch.zeros(
+                (size, self.pixel_num),
+                dtype=np_torch_map[self.dtype],
+                device=index.device,
+            )
             x[frame.long(), index.long()] = count
 
         return x
-
-
