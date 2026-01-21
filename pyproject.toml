@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boost_corr"
+dynamic = ["version"]
+description = "A high-performance correlation (multi-tau/two-time) package running on GPU and CPU"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "MIT"}
+authors = [
+    {name = "Miaoqi Chu", email = "mqichu@anl.gov"}
+]
+keywords = ["boost_corr", "correlation", "multi-tau", "two-time", "GPU", "XPCS"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "h5py",
+    "hdf5plugin",
+    "matplotlib",
+    "numpy",
+    "psutil",
+    "scikit-image",
+    "tqdm",
+    "nvidia-ml-py",
+    "torch",
+]
+
+[project.urls]
+Homepage = "https://github.com/AZjk/boost_corr"
+Repository = "https://github.com/AZjk/boost_corr"
+
+[project.scripts]
+boost_corr = "boost_corr.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]

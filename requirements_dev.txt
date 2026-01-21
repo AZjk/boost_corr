@@ -1,9 +1,0 @@
-h5py
-hdf5plugin
-matplotlib
-numpy
-psutil
-scikit-image
-tqdm
-nvidia-ml-py
-torch
