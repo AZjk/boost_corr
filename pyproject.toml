@@ -7,7 +7,7 @@ name = "boost_corr"
 dynamic = ["version"]
 description = "A high-performance correlation (multi-tau/two-time) package running on GPU and CPU"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "Miaoqi Chu", email = "mqichu@anl.gov"}
@@ -18,12 +18,9 @@ classifiers = [
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "h5py",
@@ -35,6 +32,7 @@ dependencies = [
     "tqdm",
     "nvidia-ml-py",
     "torch",
+    "torchvision",
 ]
 
 [project.urls]
