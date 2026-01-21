@@ -1,5 +1,5 @@
 import os
-import magic
+import h5py
 from .imm_handler import ImmDataset
 from .rigaku_handler import RigakuDataset
 from .rigaku_3M_handler import Rigaku3MDataset
@@ -32,12 +32,17 @@ def create_dataset(
         dataset_method = Rigaku3MDataset
         use_loader = False
         batch_size = 256
-    elif ext in [".imm", ".h5", ".hdf"]:
+    elif ext in [".imm", ".h5", ".hdf", ".hdf5"]:
+        # Check if it's an HDF5 file by trying to detect HDF5 format
+        # If not HDF5, treat it as IMM format
         real_raw = os.path.realpath(raw_fname)
-        ftype = magic.from_file(real_raw)
-        if ftype == "empty":
-            raise Exception("The raw file is damaged.")
-        elif ftype == "Hierarchical Data Format (version 5) data":
+        try:
+            is_hdf5 = h5py.is_hdf5(real_raw)
+        except (OSError, IOError):
+            # File might be corrupted or inaccessible
+            is_hdf5 = False
+        
+        if is_hdf5:
             dataset_method = HdfDataset
             use_loader = True
             batch_size = 8
