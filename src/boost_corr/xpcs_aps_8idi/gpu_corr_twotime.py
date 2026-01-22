@@ -26,7 +26,7 @@ def solve_twotime_base(
     batch_size: int = 8,
     gpu_id: int = 0,
     verbose: bool = False,
-    masked_ratio_threshold: float = 0.85,
+    crop_ratio_threshold: float = 0.5,
     num_loaders: int = 16,
     begin_frame: int = 0,
     end_frame: int = -1,
@@ -50,7 +50,7 @@ def solve_twotime_base(
         qmap,
         device=device,
         flag_sort=True,
-        masked_ratio_threshold=masked_ratio_threshold,
+        crop_ratio_threshold=crop_ratio_threshold,
         dq_selection=dq_selection,
     )
     if verbose:

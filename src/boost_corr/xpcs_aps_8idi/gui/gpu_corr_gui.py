@@ -203,7 +203,7 @@ class Ui(QMainWindow):
 
         kwargs['gpu_id'] = self.gpu_id.value()
         kwargs['batch_size'] = int(self.batch_size.currentText())
-        kwargs['masked_ratio_threshold'] = self.masked_ratio_threshold.value()
+        kwargs['crop_ratio_threshold'] = self.masked_ratio_threshold.value()
         kwargs['priority'] = self.job_priority.value()
         kwargs['num_worker'] = self.num_worker.value()
         kwargs['max_memory'] = self.max_memory.value()

@@ -31,6 +31,8 @@ class XpcsDataset(object):
         use_loader=False,
         dtype=np.uint8,
         mask_crop=None,
+        bin_time_s=1,  # bin time in seconds, placeholder for non-timepix detectors 
+        run_config_path=None,      # run config path, placeholder for non-timepix detectors
     ):
         self.fname = fname
         self.raw_size = os.path.getsize(fname) / (1024**2)
@@ -55,6 +57,7 @@ class XpcsDataset(object):
         self.dtype = dtype
         self.dataset_type = None
         self.dtype_raw = None
+        self.bin_time_s = bin_time_s
 
     def update_batch_info(self, frame_num: int) -> None:
         """

@@ -25,7 +25,7 @@ def solve_multitau_base(
     batch_size: int = 8,
     gpu_id: int = 0,
     verbose: bool = False,
-    masked_ratio_threshold: float = 0.8,
+    crop_ratio_threshold: float = 0.5,
     num_loaders: int = 16,
     normalize_frame: bool = False,
     begin_frame: int = 0,
@@ -50,7 +50,7 @@ def solve_multitau_base(
 
     # create qpartitionmap
     qpm = XpcsQPartitionMap(
-        qmap, device=device, masked_ratio_threshold=masked_ratio_threshold
+        qmap, device=device, crop_ratio_threshold=crop_ratio_threshold
     )
 
     if verbose:

@@ -101,7 +101,7 @@ class XpcsQPartitionMap(object):
         flag_fix=False,
         flag_sort=False,
         dq_selection=None,
-        masked_ratio_threshold=0.85,
+        crop_ratio_threshold=0.5,
         device="cpu",
     ) -> None:
         super().__init__()
@@ -119,7 +119,7 @@ class XpcsQPartitionMap(object):
         self.flag_sort = flag_sort
         self.load(flag_fix)
         self.group_qmap(dq_selection)
-        self.mask_crop = self.update_mask_crop(masked_ratio_threshold)
+        self.mask_crop = self.update_mask_crop(crop_ratio_threshold)
 
     def group_qmap(self, dq_selection=None):
         scount, snan_idx = find_bin_count(self.sqmap, self.sq_dim + 1)
@@ -201,8 +201,8 @@ class XpcsQPartitionMap(object):
             return True
         return False
 
-    def update_mask_crop(self, masked_ratio_threshold):
-        if self.masked_ratio < masked_ratio_threshold:
+    def update_mask_crop(self, crop_ratio_threshold):
+        if self.masked_ratio < crop_ratio_threshold:
             logger.info(f"masked_ratio is too low. Apply crop-mask on the raw input.")
             mask_crop = self.info["mask_idx_1d"]
         else:

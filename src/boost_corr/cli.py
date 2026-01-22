@@ -52,6 +52,7 @@ default_config = {
     "overwrite": False,
     "save_G2": False,  # Changed from "save_G2"
     "num_partial_g2": 0,  # Number of partial G2 to compute
+    "crop_ratio_threshold": 0.5,  # Threshold for masking
 }
 
 
@@ -205,6 +206,13 @@ parser.add_argument(
     type=int,
     default=default_config["num_partial_g2"],
     help="number of partial g2 to compute. if 0, no partial g2 will be computed",
+)
+
+parser.add_argument(
+    "--crop-ratio-threshold",
+    type=float,
+    default=default_config["crop_ratio_threshold"],
+    help="Threshold for the ratio of masked pixels. [default: %(default)s]",
 )
 
 parser.add_argument(
