@@ -146,6 +146,7 @@ Options:
   --run-config-path     Path to the run configuration file for Timepix4 data
   -w, --overwrite       Overwrite existing result files
   -c, --config          Configuration JSON file path
+  --max-memory          Max memory to use in GB [default: 36.0]
 ```
 
 ### Python API

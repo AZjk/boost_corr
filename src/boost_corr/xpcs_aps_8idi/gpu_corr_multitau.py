@@ -41,6 +41,7 @@ def solve_multitau_base(
     suffix: Optional[str] = None,
     bin_time_s: float = 1e-6,
     run_config_path=None,
+    max_memory: float = 36.0,
     **kwargs: Any,
 ) -> Union[str, None]:
     log_level = logging.INFO if verbose else logging.ERROR
@@ -87,6 +88,7 @@ def solve_multitau_base(
         normalize_frame=normalize_frame,
         qpm=qpm,
         num_partial_g2=num_partial_g2,
+        max_memory=max_memory,
     )
 
     if verbose:
