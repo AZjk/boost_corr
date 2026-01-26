@@ -53,6 +53,7 @@ default_config = {
     "save_G2": False,  # Changed from "save_G2"
     "num_partial_g2": 0,  # Number of partial G2 to compute
     "crop_ratio_threshold": 0.5,  # Threshold for masking
+    "max_memory": 36.0,  # Max memory usage in GB
 }
 
 
@@ -172,8 +173,7 @@ parser.add_argument(
     type=str,
     required=False,
     default=default_config["dq_selection"],
-    help='DQ list selection (e.g., "1,2,5-7" selects [1,2,5,6,7]). "all" uses '
-    "all dynamic qindex. [default: %(default)s]",
+    help='DQ list selection (e.g., "1,2,5-7" selects [1,2,5,6,7]). "all" uses "all dynamic qindex. [default: %(default)s]',
 )
 
 parser.add_argument(
@@ -246,6 +246,13 @@ parser.add_argument(
     type=str,
     default=None,
     help="Path to the run configuration file for Timepix4 data. [default: %(default)s]",
+)
+
+parser.add_argument(
+    "--max-memory",
+    type=float,
+    default=default_config["max_memory"],
+    help="Max memory to use in GB. [default: %(default)s]",
 )
 
 parser.add_argument(
