@@ -2,7 +2,7 @@
 
 A high-performance correlation (multi-tau/two-time) package for X-ray Photon Correlation Spectroscopy (XPCS) running on GPU and CPU.
 
-[![Python Version](https://img.shields.io/badge/python-3.6%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 
 ## Features
@@ -28,7 +28,7 @@ Create a new virtual environment using conda (recommended):
 
 ```bash
 # Create environment
-conda create -n boost_corr python=3.9
+conda create -n boost_corr python=3.12
 
 # Activate environment
 conda activate boost_corr
