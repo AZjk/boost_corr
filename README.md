@@ -45,10 +45,16 @@ boost_corr_env\Scripts\activate  # On Windows
 
 ### Step 2: Install boost-corr
 
+#### From PyPI (Stable)
+
+```bash
+pip install boost-corr
+```
+
 #### From Source (Development)
 
 ```bash
-git clone https://github.com/AZjk/boost_corr.git
+git clone https://github.com/AdvancedPhotonSource/boost_corr.git
 cd boost_corr
 pip install -e .
 ```
@@ -110,8 +116,10 @@ Example `config.json`:
 usage: boost_corr [-h] -r RAW_FILENAME [-q QMAP_FILENAME] [-o OUTPUT_DIR]
                   [-s SMOOTH] [-i GPU_ID] [-nf {0,1}] [-b BEGIN_FRAME]
                   [-e END_FRAME] [-f STRIDE_FRAME] [-a AVG_FRAME] [-t TYPE]
-                  [-d DQ_SELECTION] [-v] [-G] [-n] [-p PREFIX] [-u SUFFIX]
-                  [-w] [-c CONFIG_JSON]
+                  [-d DQ_SELECTION] [-v] [-G] [-n] [-np NUM_PARTIAL_G2]
+                  [--crop-ratio-threshold CROP_RATIO_THRESHOLD] [-p PREFIX]
+                  [-u SUFFIX] [--bin-time-s BIN_TIME_S]
+                  [--run-config-path RUN_CONFIG_PATH] [-w] [-c CONFIG_JSON]
 
 Options:
   -h, --help            Show this help message and exit
@@ -130,8 +138,12 @@ Options:
   -v, --verbose         Enable verbose output
   -G, --save-G2         Save G2, IP, and IF to file
   -n, --dry-run         Show arguments without executing
+  -np, --num-partial-g2 Number of partial G2 to compute [default: 0]
+  --crop-ratio-threshold Threshold for valid pixel ratio to trigger cropping [default: 0.5]
   -p, --prefix          Prefix for result filename
   -u, --suffix          Suffix for result filename
+  --bin-time-s          Time bin size in seconds for Timepix4 data [default: 1e-6]
+  --run-config-path     Path to the run configuration file for Timepix4 data
   -w, --overwrite       Overwrite existing result files
   -c, --config          Configuration JSON file path
 ```
@@ -228,7 +240,7 @@ boost_corr -t Multitau -i 0 \
   -r /data/sample_001.tpx.000 \
   -q /data/qmap.h5 \
   -o /output \
-  --run-config /data/run_config.json \
+  --run-config-path /data/run_config.json \
   -v
 ```
 
@@ -284,7 +296,7 @@ If you use boost-corr in your research, please cite:
 @software{boost_corr,
   author = {Chu, Miaoqi},
   title = {boost-corr: High-performance XPCS correlation analysis},
-  url = {https://github.com/AZjk/boost_corr},
+  url = {https://github.com/AdvancedPhotonSource/boost_corr},
   year = {2022}
 }
 ```
@@ -301,6 +313,6 @@ This package was developed at Argonne National Laboratory for the Advanced Photo
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/AZjk/boost_corr/issues)
+- **Issues**: [GitHub Issues](https://github.com/AdvancedPhotonSource/boost_corr/issues)
 - **Documentation**: [Read the Docs](https://boost-corr.readthedocs.io) (coming soon)
 - **Contact**: mqichu@anl.gov

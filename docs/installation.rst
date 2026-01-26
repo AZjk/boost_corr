@@ -12,7 +12,7 @@ To install boost-corr, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install boost_corr
+    $ pip install boost-corr
 
 This is the preferred method to install boost-corr, as it will always install the most recent stable release.
 
@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/AZjk/boost_corr
+    $ git clone git://github.com/AdvancedPhotonSource/boost_corr
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/AZjk/boost_corr/tarball/master
+    $ curl -OJL https://github.com/AdvancedPhotonSource/boost_corr/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,4 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/AZjk/boost_corr
-.. _tarball: https://github.com/AZjk/boost_corr/tarball/master
+.. _Github repo: https://github.com/AdvancedPhotonSource/boost_corr
