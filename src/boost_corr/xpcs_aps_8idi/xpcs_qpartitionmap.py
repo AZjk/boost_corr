@@ -176,8 +176,6 @@ class XpcsQPartitionMap(object):
         self.__dict__.update(values)
         self.mask = self.mask.astype(bool)
         self.blemish = self.blemish.astype(bool)
-        print("debug", self.dqmap.shape, self.sqmap.shape)
-        print(np.sum(self.mask), np.sum(self.blemish))
         self.dqmap = self.dqmap.astype(np.int32)
         self.sqmap = self.sqmap.astype(np.int32)
         if flag_fix:
@@ -202,8 +200,6 @@ class XpcsQPartitionMap(object):
             self.sqmap = np.swapaxes(self.sqmap, 0, 1)
             self.mask = np.swapaxes(self.mask, 0, 1)
             self.det_size = self.mask.shape
-            print(self.det_size, det_size)
-            raise
             assert self.det_size == det_size, (
                 "The shape of QMap does not match the raw data shape"
             )
