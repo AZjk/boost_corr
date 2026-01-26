@@ -13,6 +13,7 @@ key_map = {
     "dqmap": "/qmap/dynamic_roi_map",
     "sqmap": "/qmap/static_roi_map",
     "mask": "/qmap/mask",
+    "blemish": "/qmap/blemish",
 }
 
 
@@ -163,10 +164,20 @@ class XpcsQPartitionMap(object):
         values = {}
         with h5py.File(self.fname, "r") as f:
             for key, real_key in key_map.items():
-                values[key] = np.squeeze(f[real_key][()])
+                if real_key in f:
+                    values[key] = np.squeeze(f[real_key][()])
+            # for backward compatibility; older qmap files do not have blemish
+            if "blemish" not in values:
+                values["blemish"] = np.copy(values["mask"])
+                logger.info("no blemish data is available, using mask instead")
+            else:
+                logger.info("blemish data is read from qmap successfully")
 
         self.__dict__.update(values)
         self.mask = self.mask.astype(bool)
+        self.blemish = self.blemish.astype(bool)
+        print("debug", self.dqmap.shape, self.sqmap.shape)
+        print(np.sum(self.mask), np.sum(self.blemish))
         self.dqmap = self.dqmap.astype(np.int32)
         self.sqmap = self.sqmap.astype(np.int32)
         if flag_fix:
@@ -286,16 +297,22 @@ class XpcsQPartitionMap(object):
         # result = result.cpu().numpy()
         return result
 
-    def recover_dimension(self, saxs2d, flag_crop):
+    def recover_dimension(self, saxs2d, flag_crop, apply_mask=False):
         if flag_crop:
             pixel_num = self.det_size[0] * self.det_size[1]
             full_img = torch.zeros(pixel_num, dtype=torch.float32, device=saxs2d.device)
             full_img[self.info["mask_idx_1d"]] = saxs2d
         else:
             full_img = saxs2d
-        full_img = full_img.reshape(1, *self.det_size) * torch.from_numpy(self.mask).to(
-            self.device
-        )
+
+        full_img = full_img.reshape(1, *self.det_size)
+        device = saxs2d.device
+
+        if not apply_mask:
+            full_img = full_img * torch.from_numpy(self.blemish).to(device)
+        else:
+            full_img = full_img * torch.from_numpy(self.mask).to(device)
+
         return full_img
 
     def normalize_multitau(self, res, save_G2=False):
@@ -324,8 +341,8 @@ class XpcsQPartitionMap(object):
         if res["saxs_2d"].shape == self.det_size:
             flag_crop = False
         saxs1d = self.normalize_sqmap(res["saxs_2d"], flag_crop)
-        saxs2d = self.recover_dimension(res["saxs_2d"], flag_crop)
         saxs1d_par = self.normalize_sqmap(res["saxs_2d_par"], flag_crop)
+        saxs2d = self.recover_dimension(res["saxs_2d"], flag_crop, apply_mask=False)
         output_dir = {
             "saxs_2d": saxs2d,
             "saxs_1d": saxs1d,

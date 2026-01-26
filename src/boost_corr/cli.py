@@ -212,7 +212,10 @@ parser.add_argument(
     "--crop-ratio-threshold",
     type=float,
     default=default_config["crop_ratio_threshold"],
-    help="Threshold for the ratio of masked pixels. [default: %(default)s]",
+    help="Threshold for the ratio of valid (unmasked) pixels in the detector. "
+    "If the ratio of valid pixels falls below this threshold, the raw data will "
+    "be cropped to only include valid pixels, reducing memory usage. "
+    "Range: 0.0-1.0. [default: %(default)s]",
 )
 
 parser.add_argument(
