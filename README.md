@@ -54,11 +54,77 @@ pip install boost-corr
 #### From Source (Development)
 
 ```bash
+# Clone repository
 git clone https://github.com/AdvancedPhotonSource/boost_corr.git
 cd boost_corr
 pip install -e .
 ```
 
+### Using Docker or Podman
+
+You can run boost-corr using Docker or Podman. Podman is generally a drop-in replacement for Docker.
+
+#### Build the Image
+
+```bash
+docker build -t boost_corr .
+# OR
+podman build -t boost_corr .
+```
+
+#### Run the Container
+
+You need to mount your data directory to the container. Run the following command (replace paths as needed):
+
+```bash
+docker run --rm -v /local/data/path:/data boost_corr -t Multitau \
+  -r /data/sample.h5 \
+  -q /data/qmap.h5 \
+  -o /data/outputdir
+```
+
+**Podman Notes:**
+1. **Command:** simply replace `docker` with `podman`.
+2. **Permissions (SELinux):** If you are on an SELinux-enabled system (RHEL/CentOS/Fedora), you may need to append `:z` to the volume mount to allow the container to access the files:
+   `-v /local/data/path:/data:z`
+  
+**GPU Support:**
+
+*   **Docker:** Requires NVIDIA Container Toolkit.
+    ```bash
+    docker run --gpus all ...
+    ```
+
+*   **Podman:** Requires NVIDIA Container Toolkit (CDI).
+    ```bash
+    podman run --device nvidia.com/gpu=all --security-opt=label=disable ...
+    ```
+
+**Real-world Examples (Podman):**
+
+Using CPU (mounting data to `/app` with SELinux relabeling):
+```bash
+podman run --rm --shm-size=64gb \
+  -v /home/beams/MQICHU/Datasets/xpcs_edge_computing_datasets/eiger4m:/app:z \
+  boost_corr \
+  -r /app/D0131_US-Cup2_a0010_f005000_r00001/D0131_US-Cup2_a0010_f005000_r00001.h5 \
+  -q /app/D0131_qmap_with_blemish.hdf \
+  -o /app/cluster_results \
+  -v
+```
+
+Note `--shm-size` is needed for large datasets. PyTorch’s DataLoader uses shared memory for multi-process data loading, and the default Docker limit (64MB) will cause your container to crash as soon as you start training
+
+Using GPU (mounting data to `/app` with SELinux relabeling):
+```bash
+podman run --rm --shm-size=64gb --device nvidia.com/gpu=all \
+  -v /home/beams/MQICHU/Datasets/xpcs_edge_computing_datasets/eiger4m:/app:z \
+  boost_corr \
+  -r /app/D0131_US-Cup2_a0010_f005000_r00001/D0131_US-Cup2_a0010_f005000_r00001.h5 \
+  -q /app/D0131_qmap_with_blemish.hdf \
+  -o /app/cluster_results \
+  -v -i 0
+```
 
 ## Usage
 
