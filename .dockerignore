@@ -1,0 +1,16 @@
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.gitignore
+.gitattributes
+.github/
+.idea/
+.vscode/
+.DS_Store
+*.egg-info/
+dist/
+build/
+venv/
+env/
+.env
