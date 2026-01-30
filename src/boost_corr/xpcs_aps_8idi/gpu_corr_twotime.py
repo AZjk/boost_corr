@@ -9,6 +9,7 @@ from .. import TwotimeCorrelator
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .xpcs_result import XpcsResult
+import boost_corr.xpcs_aps_8idi.exceptions as exc
 
 logger = logging.getLogger(__name__)
 
@@ -46,13 +47,16 @@ def solve_twotime_base(
     device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
 
     # create qpartitionmap
-    qpm = XpcsQPartitionMap(
-        qmap,
-        device=device,
-        flag_sort=True,
-        crop_ratio_threshold=crop_ratio_threshold,
-        dq_selection=dq_selection,
-    )
+    try:
+        qpm = XpcsQPartitionMap(
+            qmap,
+            device=device,
+            flag_sort=True,
+            crop_ratio_threshold=crop_ratio_threshold,
+            dq_selection=dq_selection,
+        )
+    except Exception as e:
+        raise exc.QMapError from e
     if verbose:
         qpm.describe()
         logger.info(f"device: {device}")
@@ -60,15 +64,18 @@ def solve_twotime_base(
     logger.setLevel(log_level)
 
     # create dataset
-    dset, use_loader = create_dataset(
-        raw,
-        device,
-        mask_crop=qpm.mask_crop,
-        avg_frame=avg_frame,
-        begin_frame=begin_frame,
-        end_frame=end_frame,
-        stride_frame=stride_frame,
-    )
+    try:
+        dset, use_loader = create_dataset(
+            raw,
+            device,
+            mask_crop=qpm.mask_crop,
+            avg_frame=avg_frame,
+            begin_frame=begin_frame,
+            end_frame=end_frame,
+            stride_frame=stride_frame,
+        )
+    except Exception as e:
+        raise exc.DatasetError from e
 
     # in some detectors/configurations, the qmap is rotated
     qpm.update_rotation(dset.det_size)
@@ -76,23 +83,29 @@ def solve_twotime_base(
     # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
     meta_dir = os.path.dirname(os.path.abspath(raw))
 
-    twotime_correlator = TwotimeCorrelator(
-        qpm.qinfo,
-        frame_num=dset.frame_num,
-        det_size=dset.det_size,
-        method="normal",
-        mask_crop=qpm.mask_crop,
-        window=1024,
-        device=device,
-    )
+    try:
+        twotime_correlator = TwotimeCorrelator(
+            qpm.qinfo,
+            frame_num=dset.frame_num,
+            det_size=dset.det_size,
+            method="normal",
+            mask_crop=qpm.mask_crop,
+            window=1024,
+            device=device,
+        )
+    except Exception as e:
+        raise exc.CorrelatorError from e
 
     logger.info("correlation solver created.")
 
     t_start = time.perf_counter()
-    twotime_correlator.process_dataset(
-        dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders
-    )
-    twotime_correlator.post_processing(smooth_method=smooth)
+    try:
+        twotime_correlator.process_dataset(
+            dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders
+        )
+        twotime_correlator.post_processing(smooth_method=smooth)
+    except Exception as e:
+        raise exc.ProcessingError from e
     t_end = time.perf_counter()
     t_diff = t_end - t_start
     frequency = dset.frame_num / t_diff
@@ -101,27 +114,33 @@ def solve_twotime_base(
     )
 
     t_start = time.perf_counter()
-    raw_scattering = twotime_correlator.get_scattering()
-    norm_scattering = qpm.normalize_scattering(raw_scattering)
+    try:
+        raw_scattering = twotime_correlator.get_scattering()
+        norm_scattering = qpm.normalize_scattering(raw_scattering)
+    except Exception as e:
+        raise exc.PostProcessingError from e
     t_end = time.perf_counter()
     logger.info("normalization finished in %.3fs" % (t_end - t_start))
 
     # saving results to file
     if save_results:
-        with XpcsResult(
-            meta_dir,
-            qmap,
-            output,
-            overwrite=overwrite,
-            twotime_config=analysis_kwargs,
-            rawdata_path=os.path.realpath(raw),
-        ) as result_file:
-            result_file.append(norm_scattering)
-            for c2_payload in twotime_correlator.get_twotime_generator():
-                result_file.append(c2_payload)
+        try:
+            with XpcsResult(
+                meta_dir,
+                qmap,
+                output,
+                overwrite=overwrite,
+                twotime_config=analysis_kwargs,
+                rawdata_path=os.path.realpath(raw),
+            ) as result_file:
+                result_file.append(norm_scattering)
+                for c2_payload in twotime_correlator.get_twotime_generator():
+                    result_file.append(c2_payload)
 
-        logger.info(f"twotime analysis finished")
-        return result_file.fname
+            logger.info(f"twotime analysis finished")
+            return result_file.fname
+        except Exception as e:
+            raise exc.ResultSavingError from e
     else:
         result_file_kwargs = {
             "meta_dir": meta_dir,

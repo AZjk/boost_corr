@@ -3,6 +3,8 @@ import json
 import traceback
 import argparse
 import logging
+import boost_corr.xpcs_aps_8idi.exceptions as exc
+import torch
 
 
 logging.basicConfig(
@@ -33,6 +35,23 @@ def convert_to_list(input_str: str):
             result.append(int(part))
     result = sorted(list(set(result)))
     return result
+
+
+def check_computing_device_exist(index):
+    assert isinstance(index, int) and index >= -2
+    if index == -1: # CPU
+        return True
+    # GPUs
+    if not torch.cuda.is_available():
+        return False
+
+    num_gpus = torch.cuda.device_count()
+    if index == -2:
+        # using auto-scheduling; check if there is at least one GPU
+        return num_gpus > 0
+    else:
+        # Devices are indexed 0 to (num_gpus - 1)
+        return 0 <= index < num_gpus
 
 
 default_config = {
@@ -272,27 +291,45 @@ parser.add_argument(
     help="Configuration file path. Command line arguments override config file values",
 )
 
-args = parser.parse_args()
-args.normalize_frame = bool(args.normalize_frame)
-kwargs = vars(args)
+def get_configurations():
+    args = parser.parse_args()
+    args.normalize_frame = bool(args.normalize_frame)
+    kwargs = vars(args)
 
-if args.config is not None:
-    config_fname = kwargs.pop("config")
-    with open(config_fname) as f:
-        config = json.load(f)
+    if args.config is not None:
+        config_fname = kwargs.pop("config")
+        try:
+            with open(config_fname) as f:
+                config = json.load(f)
+        except Exception as e:
+            raise exc.ConfigurationError(f"Failed to load config file: {e}") from e
 
-    common_keys = set(kwargs.keys()) & set(config.keys())
-    for key in common_keys:
-        if kwargs[key] != default_config[key]:
-            # only update the args that are different from the default ones
-            del config[key]
-    kwargs.update(config)
+        common_keys = set(kwargs.keys()) & set(config.keys())
+        for key in common_keys:
+            if kwargs[key] != default_config[key]:
+                # only update the args that are different from the default ones
+                del config[key]
+        kwargs.update(config)
 
-kwargs["dq_selection"] = convert_to_list(kwargs["dq_selection"])
+    try:
+        kwargs["dq_selection"] = convert_to_list(kwargs["dq_selection"])
+    except Exception as e:
+        raise exc.InputError(f"Invalid dq_selection: {e}") from e
+
+    return kwargs
 
 
 def main():
-    flag = 0
+    exit_code = 0
+    try:
+        kwargs = get_configurations()
+    except Exception as e:
+        if hasattr(e, "exit_code"):
+            logging.error(str(e))
+            return e.exit_code
+        traceback.print_exc()
+        return 1
+
     if kwargs["dry_run"]:
         ans = "dry_run_only"
         print(json.dumps(kwargs, indent=4))
@@ -312,11 +349,16 @@ def main():
 
             method = solve_corr
         else:
-            flag = 1
+            exit_code = 1
             raise ValueError(f"Analysis type [{atype}] not supported.")
 
         ans = None
         try:
+            if not check_computing_device_exist(kwargs["gpu_id"]):
+                logging.error(f"GPU device [{kwargs['gpu_id']}] not found. Aborting.")
+                traceback.print_exc()
+                raise exc.ComputingDeviceError
+
             if kwargs["gpu_id"] == -2:
                 from boost_corr.gpu_scheduler import GPUScheduler
 
@@ -325,14 +367,19 @@ def main():
                     ans = method(**kwargs)
             else:
                 ans = method(**kwargs)
-        except Exception:
-            flag = 1
+        except Exception as e:
+            if hasattr(e, "exit_code"):
+                exit_code = e.exit_code
+            else:
+                exit_code = 1
             traceback.print_exc()
-            raise
+            # disable raise e to pass the exit code to the main function;
+            # raise e 
 
     # send the result's fname to std-out
-    print(ans)
-    sys.exit(flag)
+    # print(ans)
+    # print(f"Exit code: {exit_code}")
+    return exit_code
 
 
 if __name__ == "__main__":
