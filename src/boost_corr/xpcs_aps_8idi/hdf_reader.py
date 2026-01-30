@@ -31,7 +31,11 @@ def put_results_in_hdf5(save_path, result, compression=None):
         if isinstance(data, np.ndarray) and data.size > 8192 and compression is None:
             # chunks using the last two dimensions
             if data.ndim >= 2:
-                    chunks = tuple([1] * (data.ndim - 2) + list(data.shape[-2:]))
+                chunks = [1] * (data.ndim - 2) + list(data.shape[-2:])
+                # avoid hitting the 4GB limit of h5py chunk size
+                chunks[-1] = min(chunks[-1], 16384)
+                chunks[-2] = min(chunks[-2], 16384)
+                chunks = tuple(chunks)
             else:
                 chunks = data.shape
             return f.create_dataset(path, data=data, 
