@@ -158,6 +158,19 @@ boost_corr -t Twotime -i -1 \
   -v
 ```
 
+#### Using Custom Metadata File
+
+By default, boost-corr searches for metadata files (`*_metadata.hdf`) in the raw data directory. You can specify a custom metadata file:
+
+```bash
+boost_corr -t Multitau -i 0 \
+  -r /data/sample_001.h5 \
+  -q /data/qmap.h5 \
+  -o /output \
+  --meta-fname /data/custom_metadata.hdf \
+  -v
+```
+
 #### Using Configuration File
 
 ```bash
@@ -210,6 +223,7 @@ Options:
   -u, --suffix          Suffix for result filename
   --bin-time-s          Time bin size in seconds for Timepix4 data [default: 1e-6]
   --run-config-path     Path to the run configuration file for Timepix4 data
+  --meta-fname          Path to the metadata file (if not provided, searches in raw data directory)
   -w, --overwrite       Overwrite existing result files
   -c, --config          Configuration JSON file path
   --max-memory          Max memory to use in GB [default: 36.0]
@@ -280,6 +294,7 @@ result = solve_multitau(
     end_frame=-1,
     stride_frame=1,
     avg_frame=1,
+    meta_fname='/data/custom_metadata.hdf',  # Optional: specify custom metadata file
     verbose=True
 )
 ```
@@ -350,10 +365,6 @@ This will automatically select an available GPU with sufficient memory.
 ## Output Files
 
 Results are saved in the specified output directory:
-- `*_multitau.h5`: Multi-tau correlation results
-- `*_twotime.h5`: Two-time correlation results
-
-
 
 ## Citation
 
