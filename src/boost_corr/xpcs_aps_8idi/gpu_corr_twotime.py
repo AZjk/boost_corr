@@ -39,6 +39,9 @@ def solve_twotime_base(
     smooth: str = "sqmap",
     analysis_kwargs: Optional[dict] = None,
     save_results: bool = True,
+    prefix: Optional[str] = None,
+    suffix: Optional[str] = None,
+    meta_fname: Optional[str] = None,
     **kwargs,
 ):
 
@@ -79,9 +82,6 @@ def solve_twotime_base(
 
     # in some detectors/configurations, the qmap is rotated
     qpm.update_rotation(dset.det_size)
-    # determine the metadata path
-    # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
-    meta_dir = os.path.dirname(os.path.abspath(raw))
 
     try:
         twotime_correlator = TwotimeCorrelator(
@@ -126,12 +126,14 @@ def solve_twotime_base(
     if save_results:
         try:
             with XpcsResult(
-                meta_dir,
-                qmap,
-                output,
+                raw_fname=raw,
+                qmap_fname=qmap,
+                output_dir=output,
+                meta_fname=meta_fname,
                 overwrite=overwrite,
                 twotime_config=analysis_kwargs,
-                rawdata_path=os.path.realpath(raw),
+                prefix=prefix,
+                suffix=suffix,
             ) as result_file:
                 result_file.append(norm_scattering)
                 for c2_payload in twotime_correlator.get_twotime_generator():
@@ -143,7 +145,8 @@ def solve_twotime_base(
             raise exc.ResultSavingError from e
     else:
         result_file_kwargs = {
-            "meta_dir": meta_dir,
+            "raw_fname": raw,
+            "meta_fname": meta_fname,
             "qmap_fname": qmap,
             "output_dir": output,
             "overwrite": overwrite,

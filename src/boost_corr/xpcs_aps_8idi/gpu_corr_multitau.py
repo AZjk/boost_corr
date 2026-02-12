@@ -43,6 +43,7 @@ def solve_multitau_base(
     bin_time_s: float = 1e-6,
     run_config_path=None,
     max_memory: float = 36.0,
+    meta_fname: Optional[str] = None,
     **kwargs: Any,
 ) -> Union[str, None]:
     log_level = logging.INFO if verbose else logging.ERROR
@@ -81,9 +82,6 @@ def solve_multitau_base(
     # in some detectors/configurations, the qmap is rotated
     qpm.update_rotation(dset.det_size)
 
-    # determine the metadata path
-    # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
-    meta_dir = os.path.dirname(os.path.abspath(raw))
 
     try:
         xb = MultitauCorrelator(
@@ -121,7 +119,6 @@ def solve_multitau_base(
         f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz"
     )
 
-
     t_start = time.perf_counter()
     try:
         output_scattering, output_multitau = xb.get_results()
@@ -137,12 +134,12 @@ def solve_multitau_base(
     if save_results:
         try:
             with XpcsResult(
-                meta_dir,
-                qmap,
-                output,
+                raw_fname=raw,
+                qmap_fname=qmap,
+                output_dir=output,
+                meta_fname=meta_fname,
                 overwrite=overwrite,
                 multitau_config=analysis_kwargs,
-                rawdata_path=os.path.realpath(raw),
                 prefix=prefix,
                 suffix=suffix,
             ) as result_file:
@@ -157,7 +154,8 @@ def solve_multitau_base(
             raise exc.ResultSavingError from e
     else:
         result_file_kwargs = {
-            "meta_dir": meta_dir,
+            "raw_fname": raw,
+            "meta_fname": meta_fname,
             "qmap_fname": qmap,
             "output_dir": output,
             "overwrite": overwrite,

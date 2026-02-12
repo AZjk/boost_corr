@@ -275,6 +275,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--meta-fname",
+    type=str,
+    default=None,
+    help="Path to the metadata file; if not provided, the metadata file will be searched in the raw data directory",
+)
+
+parser.add_argument(
     "-w",
     "--overwrite",
     action="store_true",
