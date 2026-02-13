@@ -70,7 +70,9 @@ def create_unique_file(
     base_fname = os.path.basename(raw_fname)
 
     # Ensure the filename has the .hdf extension
-    name, ext = os.path.splitext(base_fname)
+    name, _ = os.path.splitext(base_fname)
+    if name.endswith(".tpx") or name.endswith(".hdf"):
+        name = name[:-4]
     name = name.rstrip("_metadata")
 
     if prefix:
