@@ -34,7 +34,7 @@ def get_metadata(meta_dir: str):
 
 def create_unique_file(
     output_dir: str,
-    meta_fname: str,
+    raw_fname: str,
     overwrite: bool = False,
     prefix: str = None,
     suffix: str = None,
@@ -48,7 +48,7 @@ def create_unique_file(
 
     Args:
         output_dir (str): The directory where the file will be created.
-        meta_fname (str): The base filename to use.
+        raw_fname (str): The base filename to use.
         analysis_type (Optional[str], optional): The type of analysis, if 'Twotime' is
             specified, '_Twotime' will be added to the filename. Defaults to None.
         overwrite (bool, optional): If True, allows overwriting existing files.
@@ -67,10 +67,13 @@ def create_unique_file(
         '/output/data_01.hdf'  # if 'data.hdf' already exists
     """
     # Create the base filename
-    base_fname = os.path.basename(meta_fname)
+    base_fname = os.path.basename(raw_fname)
 
     # Ensure the filename has the .hdf extension
-    name, ext = os.path.splitext(base_fname)
+    name, _ = os.path.splitext(base_fname)
+    # further strip .tpx or .hdf or .bin if present in rigaku/timepix datasets
+    if name.endswith(".tpx") or name.endswith(".hdf") or name.endswith(".bin"):
+        name = name[:-4]
     name = name.rstrip("_metadata")
 
     if prefix:
@@ -100,17 +103,32 @@ def create_unique_file(
 class XpcsResult:
     def __init__(
         self,
-        meta_dir=None,
+        raw_fname=None,
         qmap_fname=None,
         output_dir=None,
+        meta_fname=None,
         overwrite=False,
-        rawdata_path=None,
         multitau_config=None,
         twotime_config=None,
         prefix=None,
         suffix=None,
     ) -> None:
-        self.meta_dir = meta_dir
+        # dirname(FILES_IN_CURRENT_FOLDER) gives empty string
+        if meta_fname is None:
+            logger.info(f"Using raw data directory as metadata directory: {raw_fname}")
+            meta_dir = os.path.dirname(os.path.abspath(raw_fname))
+            meta_fname, meta_ftype = get_metadata(meta_dir)
+        else:
+            assert os.path.isfile(meta_fname), f"metadata file {meta_fname} does not exist"
+            logger.info(f"Using provided metadata file: {meta_fname}")
+            is_meta, meta_ftype = is_metadata(meta_fname)
+            if not is_meta:
+                raise TypeError(f"metadata file {meta_fname} is not a valid metadata file")
+
+        logger.info(f"metadata filename/type is {meta_fname} | {meta_ftype}")
+
+        self.meta_fname = meta_fname
+        self.raw_fname = raw_fname
         self.qmap_fname = qmap_fname
         self.output_dir = output_dir
         self.overwrite = overwrite
@@ -122,7 +140,7 @@ class XpcsResult:
         self.prefix = prefix
         self.suffix = suffix
         self.analysis_config = {
-            "rawdata_path": rawdata_path,
+            "rawdata_path": os.path.abspath(raw_fname),
             "multitau_config": multitau_config or {},
             "twotime_config": twotime_config or {},
         }
@@ -131,11 +149,9 @@ class XpcsResult:
         """
         Perform setup when entering the context manager.
         """
-        meta_fname, meta_ftype = get_metadata(self.meta_dir)
-        logger.info(f"metadata filename/type is {meta_fname} | {meta_ftype}")
         self.fname = create_unique_file(
             self.output_dir,
-            meta_fname,
+            self.raw_fname,
             overwrite=self.overwrite,
             prefix=self.prefix,
             suffix=self.suffix,
@@ -146,7 +162,7 @@ class XpcsResult:
 
         if not os.path.isdir(self.output_dir):
             os.makedirs(self.output_dir)
-        append_metadata_qmap(self.fname_temp, meta_fname, self.qmap_fname)
+        append_metadata_qmap(self.fname_temp, self.meta_fname, self.qmap_fname)
         self.append(self.analysis_config)
         return self
 

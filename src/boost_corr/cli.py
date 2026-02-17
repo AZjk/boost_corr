@@ -5,6 +5,7 @@ import argparse
 import logging
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 import torch
+from boost_corr import __version__
 
 
 logging.basicConfig(
@@ -196,6 +197,12 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--version",
+    action="version",
+    version=f"boost_corr {__version__}",
+)
+
+parser.add_argument(
     "-v",
     "--verbose",
     action="store_true",
@@ -272,6 +279,13 @@ parser.add_argument(
     type=float,
     default=default_config["max_memory"],
     help="Max memory to use in GB. [default: %(default)s]",
+)
+
+parser.add_argument(
+    "--meta-fname",
+    type=str,
+    default=None,
+    help="Path to the metadata file; if not provided, the metadata file will be searched in the raw data directory",
 )
 
 parser.add_argument(
