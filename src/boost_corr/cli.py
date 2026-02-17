@@ -5,6 +5,7 @@ import argparse
 import logging
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 import torch
+from boost_corr import __version__
 
 
 logging.basicConfig(
@@ -193,6 +194,12 @@ parser.add_argument(
     required=False,
     default=default_config["dq_selection"],
     help='DQ list selection (e.g., "1,2,5-7" selects [1,2,5,6,7]). "all" uses "all dynamic qindex. [default: %(default)s]',
+)
+
+parser.add_argument(
+    "--version",
+    action="version",
+    version=f"boost_corr {__version__}",
 )
 
 parser.add_argument(

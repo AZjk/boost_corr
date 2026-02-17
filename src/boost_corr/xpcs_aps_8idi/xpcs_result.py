@@ -71,7 +71,8 @@ def create_unique_file(
 
     # Ensure the filename has the .hdf extension
     name, _ = os.path.splitext(base_fname)
-    if name.endswith(".tpx") or name.endswith(".hdf"):
+    # further strip .tpx or .hdf or .bin if present in rigaku/timepix datasets
+    if name.endswith(".tpx") or name.endswith(".hdf") or name.endswith(".bin"):
         name = name[:-4]
     name = name.rstrip("_metadata")
 
