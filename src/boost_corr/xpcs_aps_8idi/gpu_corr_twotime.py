@@ -151,6 +151,8 @@ def solve_twotime_base(
             "output_dir": output,
             "overwrite": overwrite,
             "twotime_config": analysis_kwargs,
+            "prefix": prefix,
+            "suffix": suffix,
         }
         return result_file_kwargs, (
             norm_scattering,

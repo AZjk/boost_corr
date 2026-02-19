@@ -160,5 +160,7 @@ def solve_multitau_base(
             "output_dir": output,
             "overwrite": overwrite,
             "multitau_config": analysis_kwargs,
+            "prefix": prefix,
+            "suffix": suffix,
         }
         return result_file_kwargs, (norm_scattering, norm_multitau)
