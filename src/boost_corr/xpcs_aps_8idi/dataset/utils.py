@@ -6,17 +6,7 @@ from .rigaku_3M_handler import Rigaku3MDataset
 from .hdf_handler import HdfDataset
 
 
-def create_dataset(
-    raw_fname,
-    device,
-    mask_crop,
-    avg_frame,
-    begin_frame,
-    end_frame,
-    stride_frame,
-    bin_time_s=1e-6,
-    run_config_path=None,
-):
+def create_dataset(raw_fname, **kwargs):
     if not os.path.isfile(raw_fname):
         raise FileNotFoundError(f"The raw_file '{raw_fname}' does not exist.")
 
@@ -41,7 +31,7 @@ def create_dataset(
         except (OSError, IOError):
             # File might be corrupted or inaccessible
             is_hdf5 = False
-        
+
         if is_hdf5:
             dataset_method = HdfDataset
             use_loader = True
@@ -59,17 +49,6 @@ def create_dataset(
     else:
         raise TypeError(f"File type [{ext}] is not supported")
 
-    dset = dataset_method(
-        raw_fname,
-        batch_size=batch_size,
-        device=device,
-        mask_crop=mask_crop,
-        avg_frame=avg_frame,
-        begin_frame=begin_frame,
-        end_frame=end_frame,
-        stride_frame=stride_frame,
-        bin_time_s=bin_time_s,
-        run_config_path=run_config_path,
-    )
+    dset = dataset_method(raw_fname, batch_size=batch_size, **kwargs)
 
     return dset, use_loader
