@@ -47,3 +47,8 @@ boost_corr = "boost_corr.cli:main"
 where = ["src"]
 
 [tool.setuptools_scm]
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
