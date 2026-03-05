@@ -40,7 +40,7 @@ def convert_to_list(input_str: str):
 
 def check_computing_device_exist(index):
     assert isinstance(index, int) and index >= -2
-    if index == -1: # CPU
+    if index == -1:  # CPU
         return True
     # GPUs
     if not torch.cuda.is_available():
@@ -74,21 +74,21 @@ default_config = {
     "num_partial_g2": 0,  # Number of partial G2 to compute
     "crop_ratio_threshold": 0.5,  # Threshold for masking
     "max_memory": 36.0,  # Max memory usage in GB
+    "num_segments": 1,
 }
 
 
-description = (
-    "Compute Multi-tau/Twotime correlation for APS-8IDI XPCS datasets on GPU/CPU"
-)
+description = "Compute Multi-tau/Twotime correlation for APS-8IDI XPCS datasets on GPU/CPU"
 parser = argparse.ArgumentParser(description=description)
 
 parser.add_argument(
     "-r",
     "--raw",
-    metavar="RAW_FILENAME",
+    metavar="RAW_FILENAMES",
+    nargs="+",  # This allows one or more arguments
     type=str,
     required=True,
-    help="Filename of the raw data file (imm/rigaku/hdf)",
+    help="One or more filenames of the raw data files (imm/rigaku/hdf)",
 )
 
 parser.add_argument(
@@ -108,8 +108,7 @@ parser.add_argument(
     type=str,
     required=False,
     default=default_config["output"],
-    help="Output directory for result files. Directory will be created if it "
-    "doesn't exist. [default: %(default)s]",
+    help="Output directory for result files. Directory will be created if it " "doesn't exist. [default: %(default)s]",
 )
 
 parser.add_argument(
@@ -128,8 +127,7 @@ parser.add_argument(
     metavar="GPU_ID",
     type=int,
     default=default_config["gpu_id"],
-    help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific "
-    "GPU. [default: %(default)s]",
+    help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific " "GPU. [default: %(default)s]",
 )
 
 parser.add_argument(
@@ -282,6 +280,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--num-segments",
+    type=int,
+    default=default_config["num_segments"],
+    help="Number of segments to divide the data into for independent processing. [default: %(default)s]",
+)
+
+parser.add_argument(
     "--meta-fname",
     type=str,
     default=None,
@@ -304,6 +309,7 @@ parser.add_argument(
     required=False,
     help="Configuration file path. Command line arguments override config file values",
 )
+
 
 def get_configurations():
     args = parser.parse_args()
@@ -388,7 +394,7 @@ def main():
                 exit_code = 1
             traceback.print_exc()
             # disable raise e to pass the exit code to the main function;
-            # raise e 
+            # raise e
 
     # send the result's fname to std-out
     # print(ans)

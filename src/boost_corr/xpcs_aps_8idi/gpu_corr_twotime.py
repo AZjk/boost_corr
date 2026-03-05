@@ -1,15 +1,15 @@
 import logging
 import os
-
 import time
 from pathlib import Path
 from typing import Any, Optional, Union
+
+import boost_corr.xpcs_aps_8idi.exceptions as exc
 
 from .. import TwotimeCorrelator
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .xpcs_result import XpcsResult
-import boost_corr.xpcs_aps_8idi.exceptions as exc
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +17,21 @@ logger = logging.getLogger(__name__)
 def solve_twotime(*args: Any, **kwargs: Any) -> Union[str, None]:
     kwargs_record = kwargs.copy()
     kwargs_record["analysis_type"] = "twotime"
-    return solve_twotime_base(*args, analysis_kwargs=kwargs_record, **kwargs)
+    num_rawfiles = len(kwargs["raw"])
+    if num_rawfiles == 1:
+        kwargs["raw"] = kwargs["raw"][0]
+        return solve_twotime_base(*args, analysis_kwargs=kwargs_record, **kwargs)
+    else:
+        all_rawfiles = kwargs["raw"].copy()
+        for raw in all_rawfiles:
+            kwargs["raw"] = raw
+            solve_twotime_base(*args, analysis_kwargs=kwargs_record, **kwargs)
+        return
 
 
 def solve_twotime_base(
-    qmap: Optional[Union[str, Path]] = None,
-    raw: Optional[Union[str, Path]] = None,
+    qmap: Union[str, Path] = None,
+    raw: Union[str, Path] = None,
     output: str = "cluster_results",
     batch_size: int = 8,
     gpu_id: int = 0,
@@ -49,6 +58,10 @@ def solve_twotime_base(
     logger.setLevel(log_level)
     device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
 
+    # force crop to use only valid pixels; needed for twotime correlator
+    logger.info(f"forcing cropping to use only valid pixels: {crop_ratio_threshold=:.2f} -> 1.0")
+    crop_ratio_threshold = 1.0
+
     # create qpartitionmap
     try:
         qpm = XpcsQPartitionMap(
@@ -64,13 +77,11 @@ def solve_twotime_base(
         qpm.describe()
         logger.info(f"device: {device}")
 
-    logger.setLevel(log_level)
-
     # create dataset
     try:
         dset, use_loader = create_dataset(
             raw,
-            device,
+            device=device,
             mask_crop=qpm.mask_crop,
             avg_frame=avg_frame,
             begin_frame=begin_frame,
@@ -100,18 +111,14 @@ def solve_twotime_base(
 
     t_start = time.perf_counter()
     try:
-        twotime_correlator.process_dataset(
-            dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders
-        )
+        twotime_correlator.process_dataset(dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders)
         twotime_correlator.post_processing(smooth_method=smooth)
     except Exception as e:
         raise exc.ProcessingError from e
     t_end = time.perf_counter()
     t_diff = t_end - t_start
     frequency = dset.frame_num / t_diff
-    logger.info(
-        f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz"
-    )
+    logger.info(f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz")
 
     t_start = time.perf_counter()
     try:
