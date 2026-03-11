@@ -7,18 +7,26 @@ from PyQt5 import uic, QtCore
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QFileDialog, QListView,
                              QAbstractItemView, QTreeView)
 from gpu_corr_solver import GPUSolverWorker, get_raw_meta
+from boost_corr.help_functions import _GPU_BACKEND, get_gpu_count
 
 
 def get_system_information():
     sys_info = {}
-    sys_info['num_gpus'] = torch.cuda.device_count()
-    sys_info['num_cpus'] = psutil.cpu_count(logical=False)
     scale = 1024**3
 
+    num_gpus = get_gpu_count()
     device = {}
-    for n in range(sys_info['num_gpus']):
-        a = torch.cuda.get_device_properties('cuda:%d' % n)
-        device[n] = {'name': a.name, 'total_memory': a.total_memory / scale}
+    for n in range(num_gpus):
+        if _GPU_BACKEND == "xpu":
+            a = torch.xpu.get_device_properties(n)
+            device[n] = {'name': getattr(a, 'name', f'xpu:{n}'),
+                         'total_memory': getattr(a, 'total_memory', 0) / scale}
+        else:  # cuda
+            a = torch.cuda.get_device_properties('cuda:%d' % n)
+            device[n] = {'name': a.name, 'total_memory': a.total_memory / scale}
+
+    sys_info['num_gpus'] = num_gpus
+    sys_info['num_cpus'] = psutil.cpu_count(logical=False)
 
     cpu_ram = psutil.virtual_memory().total / scale
     # set an upper limit to cpu_ram;

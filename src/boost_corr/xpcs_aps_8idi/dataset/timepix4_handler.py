@@ -3,6 +3,7 @@ import logging
 import torch
 from .xpcs_dataset import XpcsDataset
 from timepix_dataset.dataset import TimepixRawDataset
+from ...help_functions import is_gpu_device
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class TimepixAnalysisDataset(XpcsDataset):
 
     def to_device_single_module(self, ifc, max_fsize_gb_in_gpu=1.0):
         total_size = sum([arr.nbytes for arr in ifc]) / 1024**3
-        if total_size <= max_fsize_gb_in_gpu and self.device.startswith("cuda"):
+        if total_size <= max_fsize_gb_in_gpu and is_gpu_device(self.device):
             logger.info("Preloading timepix rawdata to GPU memory")
             device = self.device
         else:

@@ -3,6 +3,7 @@ import logging
 import torch
 from .xpcs_dataset import XpcsDataset
 from .help_functions import convert_sparse
+from ...help_functions import is_gpu_device
 import os
 
 
@@ -27,7 +28,7 @@ class RigakuDataset(XpcsDataset):
 
     def to_device(self, max_fsize_gb_in_gpu=1.0):
         fsize = os.path.getsize(self.fname) / 1024**3
-        if fsize <= max_fsize_gb_in_gpu and self.device.startswith("cuda"):
+        if fsize <= max_fsize_gb_in_gpu and is_gpu_device(self.device):
             device = self.device
         else:
             device = "cpu"

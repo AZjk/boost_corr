@@ -7,6 +7,7 @@ from typing import Any, Optional, Union
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 
 from .. import MultitauCorrelator
+from ..help_functions import get_device
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .xpcs_result import XpcsResult
@@ -67,7 +68,7 @@ def solve_multitau_single(
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
 
-    device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
+    device = get_device(gpu_id)
 
     # create qpartitionmap
     try:
@@ -208,7 +209,7 @@ def solve_multitau_batch(
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
 
-    device = f"cuda:{gpu_id}" if gpu_id >= 0 else "cpu"
+    device = get_device(gpu_id)
 
     # create qpartitionmap
     try:

@@ -4,8 +4,8 @@ import traceback
 import argparse
 import logging
 import boost_corr.xpcs_aps_8idi.exceptions as exc
-import torch
 from boost_corr import __version__
+from boost_corr.help_functions import get_gpu_count
 
 
 logging.basicConfig(
@@ -42,11 +42,8 @@ def check_computing_device_exist(index):
     assert isinstance(index, int) and index >= -2
     if index == -1:  # CPU
         return True
-    # GPUs
-    if not torch.cuda.is_available():
-        return False
-
-    num_gpus = torch.cuda.device_count()
+    # GPUs — count is cached at import time; XPU and CUDA are mutually exclusive
+    num_gpus = get_gpu_count()
     if index == -2:
         # using auto-scheduling; check if there is at least one GPU
         return num_gpus > 0
