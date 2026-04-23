@@ -63,3 +63,9 @@ class InputError(BoostCorrError):
     """Specific to input data or parameters."""
     def __init__(self, message="Input error"):
         super().__init__(message, exit_code=65)
+
+
+class MetadataError(BoostCorrError):
+    """Specific to metadata file discovery or parsing."""
+    def __init__(self, message="Metadata error"):
+        super().__init__(message, exit_code=79)
