@@ -5,6 +5,7 @@ import shutil
 import traceback
 import h5py
 
+import boost_corr.xpcs_aps_8idi.exceptions as exc
 from .append_metadata_qmap import append_metadata_qmap
 from .hdf_reader import put_results_in_hdf5
 
@@ -29,7 +30,20 @@ def get_metadata(meta_dir: str):
             is_meta, meta_type = is_metadata(f)
             if is_meta:
                 return f, meta_type
-    raise FileNotFoundError(f"no metadata file found in [{meta_dir}]")
+    raise exc.MetadataError(f"no metadata file found in [{meta_dir}]")
+
+
+def check_metadata(raw_fname: str, meta_fname: str = None):
+    """Raise MetadataError early if metadata cannot be resolved for raw_fname."""
+    if meta_fname is not None:
+        if not os.path.isfile(meta_fname):
+            raise exc.MetadataError(f"metadata file not found: {meta_fname}")
+        is_meta, _ = is_metadata(meta_fname)
+        if not is_meta:
+            raise exc.MetadataError(f"not a valid metadata file: {meta_fname}")
+    else:
+        meta_dir = os.path.dirname(os.path.abspath(raw_fname))
+        get_metadata(meta_dir)  # raises MetadataError if not found
 
 
 def create_unique_file(
