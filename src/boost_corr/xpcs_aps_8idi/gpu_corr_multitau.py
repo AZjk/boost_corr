@@ -1,8 +1,10 @@
 import logging
-import os
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
+
+import torch
 
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 
@@ -10,177 +12,130 @@ from .. import MultitauCorrelator
 from ..help_functions import get_device
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
-from .xpcs_result import XpcsResult
+from .xpcs_result import XpcsResult, check_metadata
 
 logger = logging.getLogger(__name__)
 
 
-def solve_multitau(*args: Any, **kwargs: Any) -> Union[str, None]:
-    num_rawfiles = len(kwargs["raw"])
-    num_segments = kwargs["num_segments"]
-
-    kwargs_record = kwargs.copy()
-    kwargs_record["analysis_type"] = "multitau"
-
-    if num_segments > 1:
-        all_rawfiles = kwargs["raw"].copy()  # force copy
-        for raw in all_rawfiles:
-            kwargs["raw"] = [raw]
-            solve_multitau_batch(*args, analysis_kwargs=kwargs_record, **kwargs)
-        return
-    else:
-        # no segments
-        if num_rawfiles == 1:
-            kwargs["raw"] = kwargs["raw"][0]
-            # return the result file name
-            return solve_multitau_single(*args, analysis_kwargs=kwargs_record, **kwargs)
-        else:
-            solve_multitau_batch(*args, analysis_kwargs=kwargs_record, **kwargs)
-
-
-def solve_multitau_single(
-    qmap: Union[str, Path] = None,
-    raw: Union[str, Path] = None,
-    output: str = "cluster_results",
-    batch_size: int = 8,
-    gpu_id: int = 0,
-    verbose: bool = False,
-    crop_ratio_threshold: float = 0.5,
-    num_loaders: int = 16,
-    normalize_frame: bool = False,
-    begin_frame: int = 0,
-    end_frame: int = -1,
-    avg_frame: int = 1,
-    stride_frame: int = 1,
-    overwrite: bool = False,
-    save_G2: bool = False,
-    analysis_kwargs: Optional[dict] = None,
-    save_results: bool = True,
-    num_partial_g2: int = 0,
-    prefix: Optional[str] = None,
-    suffix: Optional[str] = None,
-    bin_time_s: float = 1e-6,
-    run_config_path=None,
-    max_memory: float = 36.0,
-    meta_fname: Optional[str] = None,
-    **kwargs: Any,
-) -> Union[str, None]:
-    log_level = logging.INFO if verbose else logging.ERROR
-    logger.setLevel(log_level)
-
-    device = get_device(gpu_id)
-
-    # create qpartitionmap
+def _create_qpm(qmap, device, crop_ratio_threshold):
     try:
-        qpm = XpcsQPartitionMap(qmap, device=device, crop_ratio_threshold=crop_ratio_threshold)
+        return XpcsQPartitionMap(
+            qmap, device=device, crop_ratio_threshold=crop_ratio_threshold
+        )
     except Exception as e:
         raise exc.QMapError from e
 
-    if verbose:
-        qpm.describe()
-        logger.info(f"device: {device}")
 
-    # create dataset
-    try:
-        dset, use_loader = create_dataset(
-            raw,
-            device=device,
-            mask_crop=qpm.mask_crop,
-            avg_frame=avg_frame,
-            begin_frame=begin_frame,
-            end_frame=end_frame,
-            stride_frame=stride_frame,
-            bin_time_s=bin_time_s,
-            run_config_path=run_config_path,
-        )
-    except Exception as e:
-        raise exc.DatasetError from e
+def _build_segment_jobs(
+    raw_file, num_segments, begin_frame, suffix, common_dset_kwargs
+):
+    """Return list of (raw_fname, dset_kwargs, suffix) for all segments of one file."""
+    assert common_dset_kwargs["stride_frame"] == 1, (
+        "multiple segments process only supports stride frame = 1"
+    )
+    assert common_dset_kwargs["avg_frame"] == 1, (
+        "multiple segments process only supports avg frame = 1"
+    )
+    dset, _ = create_dataset(raw_file, **common_dset_kwargs)
+    total_frame_num = dset.frame_num
+    assert total_frame_num % num_segments == 0, (
+        "total frame number must be divisible by num_segments"
+    )
+    segment_frame_num = total_frame_num // num_segments
+    assert segment_frame_num >= 1, "segment frame number must be >= 1"
 
-    # in some detectors/configurations, the qmap is rotated
-    qpm.update_rotation(dset.det_size)
+    jobs = []
+    suffix_width = len(str(num_segments - 1))
+    for n in range(num_segments):
+        entry = common_dset_kwargs.copy()
+        entry["begin_frame"] = begin_frame + n * segment_frame_num
+        entry["end_frame"] = begin_frame + (n + 1) * segment_frame_num
+        _suffix = f"segment_{n:0{suffix_width}d}"
+        if suffix is not None:
+            _suffix = f"{suffix}_{_suffix}"
+        jobs.append((raw_file, entry, _suffix))
+    return jobs
 
-    try:
-        xb = MultitauCorrelator(
-            dset.det_size,
-            frame_num=dset.frame_num,
-            queue_size=batch_size,  # batch_size is the minimal value
-            auto_queue=True,
-            device=device,
-            mask_crop=qpm.mask_crop,
-            normalize_frame=normalize_frame,
-            qpm=qpm,
-            num_partial_g2=num_partial_g2,
-            max_memory=max_memory,
-        )
-    except Exception as e:
-        raise exc.CorrelatorError from e
 
-    if verbose:
-        dset.describe()
-        xb.describe()
-        logger.info("correlation solver created.")
+def _empty_gpu_cache(device: str):
+    if device.startswith("cuda"):
+        torch.cuda.empty_cache()
+    elif device.startswith("xpu"):
+        torch.xpu.empty_cache()
 
+
+def _create_or_reset_correlator(existing, dset, mask_crop, multitau_kwargs):
+    if (
+        existing is None
+        or existing.frame_num != dset.frame_num
+        or existing.det_size != dset.det_size
+    ):
+        try:
+            return MultitauCorrelator(
+                dset.det_size,
+                frame_num=dset.frame_num,
+                mask_crop=mask_crop,
+                **multitau_kwargs,
+            )
+        except Exception as e:
+            raise exc.CorrelatorError from e
+    else:
+        logger.info("reset correlator")
+        existing.reset()
+        return existing
+
+
+def _run_correlation(correlator, dset, verbose, use_loader, num_loaders):
     t_start = time.perf_counter()
     try:
-        xb.process_dataset(dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders)
+        correlator.process_dataset(
+            dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders
+        )
     except Exception as e:
         raise exc.ProcessingError from e
+    t_diff = time.perf_counter() - t_start
+    logger.info(
+        f"correlation finished in {t_diff:.2f}s. frequency = {dset.frame_num / t_diff:.2f} Hz"
+    )
 
-    t_end = time.perf_counter()
-    t_diff = t_end - t_start
-    frequency = dset.frame_num / t_diff
-    logger.info(f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz")
 
+def _normalize_results(correlator, qpm, save_G2):
     t_start = time.perf_counter()
     try:
-        output_scattering, output_multitau = xb.get_results()
+        output_scattering, output_multitau = correlator.get_results()
         norm_scattering = qpm.normalize_scattering(output_scattering)
         norm_multitau = qpm.normalize_multitau(output_multitau, save_G2=save_G2)
-        part_multitau = xb.get_partial_g2()
+        part_multitau = correlator.get_partial_g2()
     except Exception as e:
         raise exc.PostProcessingError from e
-
-    t_end = time.perf_counter()
-    logger.info("normalization finished in %.3fs" % (t_end - t_start))
-
-    if save_results:
-        try:
-            with XpcsResult(
-                raw_fname=raw,
-                qmap_fname=qmap,
-                output_dir=output,
-                meta_fname=meta_fname,
-                overwrite=overwrite,
-                multitau_config=analysis_kwargs,
-                prefix=prefix,
-                suffix=suffix,
-            ) as result_file:
-                result_file.append(norm_scattering)
-                result_file.append(norm_multitau)
-                result_file.append(part_multitau)
-                if dset.dataset_type == "Timepix4Dataset":
-                    result_file.correct_t0_for_timepix4(bin_time_s)
-            logger.info("multitau analysis finished")
-            return result_file.fname
-        except Exception as e:
-            raise exc.ResultSavingError from e
-    else:
-        result_file_kwargs = {
-            "raw_fname": raw,
-            "meta_fname": meta_fname,
-            "qmap_fname": qmap,
-            "output_dir": output,
-            "overwrite": overwrite,
-            "multitau_config": analysis_kwargs,
-            "prefix": prefix,
-            "suffix": suffix,
-        }
-        return result_file_kwargs, (norm_scattering, norm_multitau)
+    logger.info("normalization finished in %.3fs" % (time.perf_counter() - t_start))
+    return norm_scattering, norm_multitau, part_multitau
 
 
-def solve_multitau_batch(
+def _save_result(
+    result_kwargs,
+    norm_scattering,
+    norm_multitau,
+    part_multitau,
+    dset,
+    bin_time_s,
+):
+    try:
+        with XpcsResult(**result_kwargs) as result_file:
+            result_file.append(norm_scattering)
+            result_file.append(norm_multitau)
+            result_file.append(part_multitau)
+            if dset.dataset_type == "Timepix4Dataset":
+                result_file.correct_t0_for_timepix4(bin_time_s)
+        logger.info("multitau analysis finished")
+        return result_file.fname
+    except Exception as e:
+        raise exc.ResultSavingError from e
+
+
+def solve_multitau(
     qmap: Union[str, Path] = None,
-    raw: list[str] = None,
+    raw: list = None,
     output: str = "cluster_results",
     batch_size: int = 8,
     gpu_id: int = 0,
@@ -194,7 +149,6 @@ def solve_multitau_batch(
     stride_frame: int = 1,
     overwrite: bool = False,
     save_G2: bool = False,
-    analysis_kwargs: Optional[dict] = None,
     save_results: bool = True,
     num_partial_g2: int = 0,
     prefix: Optional[str] = None,
@@ -206,16 +160,13 @@ def solve_multitau_batch(
     meta_fname: Optional[str] = None,
     **kwargs: Any,
 ) -> Union[str, None]:
-    log_level = logging.INFO if verbose else logging.ERROR
-    logger.setLevel(log_level)
+    analysis_kwargs = {
+        k: v for k, v in locals().items() if k not in ("save_results", "kwargs")
+    }
+    analysis_kwargs["analysis_type"] = "multitau"
 
     device = get_device(gpu_id)
-
-    # create qpartitionmap
-    try:
-        qpm = XpcsQPartitionMap(qmap, device=device, crop_ratio_threshold=crop_ratio_threshold)
-    except Exception as e:
-        raise exc.QMapError from e
+    qpm = _create_qpm(qmap, device, crop_ratio_threshold)
 
     if verbose:
         qpm.describe()
@@ -232,111 +183,115 @@ def solve_multitau_batch(
         "run_config_path": run_config_path,
     }
 
+    multitau_kwargs = {
+        "queue_size": batch_size,
+        "auto_queue": True,
+        "device": device,
+        "normalize_frame": normalize_frame,
+        "qpm": qpm,
+        "num_partial_g2": num_partial_g2,
+        "max_memory": max_memory,
+    }
+
     if num_segments > 1:
-        logger.info(f"multiple segments process for a single file, num_segments: {num_segments}")
-        assert len(raw) == 1, "multiple segments process only supports one raw file"
-        assert stride_frame == 1, "multiple segments process only supports stride frame = 1"
-        assert avg_frame == 1, "multiple segments process only supports avg frame = 1"
-
-        dset, use_loader = create_dataset(raw[0], **common_dset_kwargs)
-        total_frame_num = dset.frame_num
-        assert total_frame_num % num_segments == 0, "total frame number must be divisible by num_segments"
-        segment_frame_num = total_frame_num // num_segments
-        assert segment_frame_num >= 1, "segment frame number must be >= 1"
-
-        dset_kwargs_list = []
-        suffix_width = len(str(num_segments - 1))  # start with 0
-        for n in range(num_segments):
-            entry = common_dset_kwargs.copy()
-            entry["begin_frame"] = begin_frame + n * segment_frame_num
-            entry["end_frame"] = begin_frame + (n + 1) * segment_frame_num
-            raw_fname = raw[0]
-            _suffix = f"segment_{n:0{suffix_width}d}"
-            if suffix is not None:
-                _suffix = f"{suffix}_{_suffix}"
-            dset_kwargs_list.append([raw_fname, entry, _suffix])
-
-    else:
-        logger.info(f"single segments process for multiple files, num_segments: {num_segments}")
-        dset_kwargs_list = []
-        for raw_fname in raw:
-            entry = common_dset_kwargs.copy()
-            dset_kwargs_list.append([raw_fname, entry, suffix])
-
-    correlator = None
-    for raw_fname, dset_kwargs, _suffix in dset_kwargs_list:
-        try:
-            dset, use_loader = create_dataset(raw_fname, **dset_kwargs)
-        except Exception as e:
-            raise exc.DatasetError from e
-        # in some detectors/configurations, the qmap is rotated
-        qpm.update_rotation(dset.det_size)
-
-        if correlator is None:
-            try:
-                correlator = MultitauCorrelator(
-                    dset.det_size,
-                    frame_num=dset.frame_num,
-                    queue_size=batch_size,  # batch_size is the minimal value
-                    auto_queue=True,
-                    device=device,
-                    mask_crop=qpm.mask_crop,
-                    normalize_frame=normalize_frame,
-                    qpm=qpm,
-                    num_partial_g2=num_partial_g2,
-                    max_memory=max_memory,
+        logger.info(
+            f"multiple segments process, num_segments: {num_segments}, num_rawfiles: {len(raw)}"
+        )
+        jobs = []
+        for raw_file in raw:
+            jobs.extend(
+                _build_segment_jobs(
+                    raw_file, num_segments, begin_frame, suffix, common_dset_kwargs
                 )
-            except Exception as e:
-                raise exc.CorrelatorError from e
-        else:
-            logger.info("reset correlator")
-            correlator.reset()
+            )
+    elif len(raw) == 1:
+        jobs = [(raw[0], common_dset_kwargs, suffix)]
+    else:
+        logger.info(
+            f"single segment process for multiple files, num_rawfiles: {len(raw)}"
+        )
+        jobs = [(raw_fname, common_dset_kwargs.copy(), suffix) for raw_fname in raw]
 
-        if verbose:
-            dset.describe()
-            correlator.describe()
-            logger.info("correlation solver created.")
+    single_job = len(jobs) == 1
+    n_jobs = len(jobs)
+    correlator = None
+    last_fname = None
+    failed_jobs = []
 
-        t_start = time.perf_counter()
+    for job_idx, (raw_fname, dset_kwargs, _suffix) in enumerate(jobs, start=1):
+        t_job_start = time.perf_counter()
         try:
-            correlator.process_dataset(dset, verbose=verbose, use_loader=use_loader, num_workers=num_loaders)
+            check_metadata(raw_fname, meta_fname)
+            dset, use_loader = create_dataset(raw_fname, **dset_kwargs)
+            qpm.update_rotation(dset.det_size)
+            if correlator is not None and (
+                correlator.frame_num != dset.frame_num
+                or correlator.det_size != dset.det_size
+            ):
+                logger.info("freeing existing correlator to reclaim VRAM")
+                correlator = None
+                _empty_gpu_cache(device)
+            correlator = _create_or_reset_correlator(
+                correlator,
+                dset,
+                qpm.mask_crop,
+                multitau_kwargs,
+            )
+
+            if verbose:
+                dset.describe()
+                correlator.describe()
+                logger.info("correlation solver created.")
+
+            _run_correlation(correlator, dset, verbose, use_loader, num_loaders)
+            norm_scattering, norm_multitau, part_multitau = _normalize_results(
+                correlator, qpm, save_G2
+            )
+
+            result_kwargs = {
+                "raw_fname": raw_fname,
+                "qmap_fname": qmap,
+                "output_dir": output,
+                "meta_fname": meta_fname,
+                "overwrite": overwrite,
+                "multitau_config": analysis_kwargs,
+                "prefix": prefix,
+                "suffix": _suffix,
+            }
+
+            if not save_results and single_job:
+                return result_kwargs, (norm_scattering, norm_multitau)
+
+            last_fname = _save_result(
+                result_kwargs,
+                norm_scattering,
+                norm_multitau,
+                part_multitau,
+                dset,
+                bin_time_s,
+            )
+            elapsed = time.perf_counter() - t_job_start
+            ts = datetime.now().strftime("%m-%d %H:%M:%S")
+            print(f"[{ts}] [{job_idx}/{n_jobs}] ({elapsed:.1f}s) saved: {last_fname}")
         except Exception as e:
-            raise exc.ProcessingError from e
+            _debug_keys = {
+                "raw", "qmap", "output", "meta_fname", "gpu_id",
+                "normalize_frame", "begin_frame", "end_frame",
+                "avg_frame", "stride_frame", "num_segments",
+            }
+            debug_info = {k: analysis_kwargs[k] for k in _debug_keys if k in analysis_kwargs}
+            debug_info["raw"] = raw_fname
+            e.add_note(f"analysis_kwargs: {debug_info}")
+            if single_job:
+                raise
+            elapsed = time.perf_counter() - t_job_start
+            ts = datetime.now().strftime("%m-%d %H:%M:%S")
+            print(f"[{ts}] [{job_idx}/{n_jobs}] ({elapsed:.1f}s) FAILED: {raw_fname}")
+            logger.error(f"job failed for {raw_fname}: {e}", exc_info=True)
+            failed_jobs.append(raw_fname)
+            correlator = None  # reset: state may be corrupted after a failed job
 
-        t_end = time.perf_counter()
-        t_diff = t_end - t_start
-        frequency = dset.frame_num / t_diff
-        logger.info(f"correlation finished in {t_diff:.2f}s." + f" frequency = {frequency:.2f} Hz")
+    if failed_jobs:
+        logger.warning(f"{len(failed_jobs)} job(s) failed: {failed_jobs}")
 
-        t_start = time.perf_counter()
-        try:
-            output_scattering, output_multitau = correlator.get_results()
-            norm_scattering = qpm.normalize_scattering(output_scattering)
-            norm_multitau = qpm.normalize_multitau(output_multitau, save_G2=save_G2)
-            part_multitau = correlator.get_partial_g2()
-        except Exception as e:
-            raise exc.PostProcessingError from e
-
-        t_end = time.perf_counter()
-        logger.info("normalization finished in %.3fs" % (t_end - t_start))
-
-        try:
-            with XpcsResult(
-                raw_fname=raw_fname,
-                qmap_fname=qmap,
-                output_dir=output,
-                meta_fname=meta_fname,
-                overwrite=overwrite,
-                multitau_config=analysis_kwargs,
-                prefix=prefix,
-                suffix=_suffix,
-            ) as result_file:
-                result_file.append(norm_scattering)
-                result_file.append(norm_multitau)
-                result_file.append(part_multitau)
-                if dset.dataset_type == "Timepix4Dataset":
-                    result_file.correct_t0_for_timepix4(bin_time_s)
-            logger.info("multitau analysis finished")
-            # return result_file.fname
-        except Exception as e:
-            raise exc.ResultSavingError from e
+    return last_fname

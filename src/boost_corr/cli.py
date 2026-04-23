@@ -8,11 +8,41 @@ from boost_corr import __version__
 from boost_corr.help_functions import get_gpu_count
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s",
-    datefmt="%m-%d %H:%M:%S",
-)
+_LOG_FORMAT = "%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s"
+_LOG_DATEFMT = "%m-%d %H:%M:%S"
+
+
+class _MaxLevelFilter(logging.Filter):
+    """Pass only records strictly below max_level (keeps stdout free of warnings)."""
+
+    def __init__(self, max_level):
+        self.max_level = max_level
+
+    def filter(self, record):
+        return record.levelno < self.max_level
+
+
+def _setup_logging():
+    formatter = logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT)
+
+    # INFO and below → stdout (visible in PBS .o file)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.DEBUG)
+    stdout_handler.addFilter(_MaxLevelFilter(logging.WARNING))
+    stdout_handler.setFormatter(formatter)
+
+    # WARNING and above → stderr (captured in PBS .e file)
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.WARNING)
+    stderr_handler.setFormatter(formatter)
+
+    root = logging.getLogger()
+    root.setLevel(logging.WARNING)  # raised to INFO when -v is passed
+    root.addHandler(stdout_handler)
+    root.addHandler(stderr_handler)
+
+
+_setup_logging()
 
 # disable hdf5plugin info logging
 logging.getLogger("hdf5plugin").setLevel(logging.WARNING)
@@ -346,6 +376,9 @@ def main():
             return e.exit_code
         traceback.print_exc()
         return 1
+
+    if kwargs["verbose"]:
+        logging.getLogger().setLevel(logging.INFO)
 
     if kwargs["dry_run"]:
         ans = "dry_run_only"
