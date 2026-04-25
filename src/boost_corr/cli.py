@@ -115,7 +115,7 @@ parser.add_argument(
     nargs="+",  # This allows one or more arguments
     type=str,
     required=True,
-    help="One or more filenames of the raw data files (imm/rigaku/hdf)",
+    help="One or more filenames of the raw data files (imm/rigaku/hdf), or a single .txt file containing one raw filename per line",
 )
 
 parser.add_argument(

@@ -193,6 +193,11 @@ def solve_multitau(
         "max_memory": max_memory,
     }
 
+    if len(raw) == 1 and raw[0].endswith(".txt"):
+        logger.info(f"raw input is a text file, loading raw file list from {raw[0]}")
+        with open(raw[0], "r") as f:
+            raw = [line.strip() for line in f if line.strip()]
+
     if num_segments > 1:
         logger.info(
             f"multiple segments process, num_segments: {num_segments}, num_rawfiles: {len(raw)}"
@@ -275,11 +280,21 @@ def solve_multitau(
             print(f"[{ts}] [{job_idx}/{n_jobs}] ({elapsed:.1f}s) saved: {last_fname}")
         except Exception as e:
             _debug_keys = {
-                "raw", "qmap", "output", "meta_fname", "gpu_id",
-                "normalize_frame", "begin_frame", "end_frame",
-                "avg_frame", "stride_frame", "num_segments",
+                "raw",
+                "qmap",
+                "output",
+                "meta_fname",
+                "gpu_id",
+                "normalize_frame",
+                "begin_frame",
+                "end_frame",
+                "avg_frame",
+                "stride_frame",
+                "num_segments",
             }
-            debug_info = {k: analysis_kwargs[k] for k in _debug_keys if k in analysis_kwargs}
+            debug_info = {
+                k: analysis_kwargs[k] for k in _debug_keys if k in analysis_kwargs
+            }
             debug_info["raw"] = raw_fname
             e.add_note(f"analysis_kwargs: {debug_info}")
             if single_job:
