@@ -69,8 +69,8 @@ def convert_to_list(input_str: str):
 
 
 def check_computing_device_exist(index):
-    assert isinstance(index, int) and index >= -2
-    if index == -1:  # CPU
+    assert isinstance(index, int) and index >= -3
+    if index == -1 or index == -3:  # CPU or APS PBS scheduler
         return True
     # GPUs — count is cached at import time; XPU and CUDA are mutually exclusive
     num_gpus = get_gpu_count()
@@ -102,10 +102,15 @@ default_config = {
     "crop_ratio_threshold": 0.5,  # Threshold for masking
     "max_memory": 36.0,  # Max memory usage in GB
     "num_segments": 1,
+    "pbs_queue": "XpcsLowQ",
+    "pbs_batch_size": 32,
+    "pbs_gpus": 4,
 }
 
 
-description = "Compute Multi-tau/Twotime correlation for APS-8IDI XPCS datasets on GPU/CPU"
+description = (
+    "Compute Multi-tau/Twotime correlation for APS-8IDI XPCS datasets on GPU/CPU"
+)
 parser = argparse.ArgumentParser(description=description)
 
 parser.add_argument(
@@ -135,7 +140,8 @@ parser.add_argument(
     type=str,
     required=False,
     default=default_config["output"],
-    help="Output directory for result files. Directory will be created if it " "doesn't exist. [default: %(default)s]",
+    help="Output directory for result files. Directory will be created if it "
+    "doesn't exist. [default: %(default)s]",
 )
 
 parser.add_argument(
@@ -154,7 +160,8 @@ parser.add_argument(
     metavar="GPU_ID",
     type=int,
     default=default_config["gpu_id"],
-    help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific " "GPU. [default: %(default)s]",
+    help="GPU selection: -1 for CPU, -2 for auto-scheduling, >=0 for specific "
+    "GPU. -3 for APS PBS scheduler [default: %(default)s]",
 )
 
 parser.add_argument(
@@ -321,6 +328,28 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--pbs-queue",
+    type=str,
+    default=default_config["pbs_queue"],
+    choices=["XpcsLowQ", "AiLowQ"],
+    help="PBS queue for job submission (only used with --gpu-id -3). [default: %(default)s]",
+)
+
+parser.add_argument(
+    "--pbs-batch-size",
+    type=int,
+    default=default_config["pbs_batch_size"],
+    help="Number of raw files per PBS job (only used with --gpu-id -3). [default: %(default)s]",
+)
+
+parser.add_argument(
+    "--pbs-gpus",
+    type=int,
+    default=default_config["pbs_gpus"],
+    help="Number of GPUs available in the PBS queue; used to auto-scale batch size (only used with --gpu-id -3). [default: %(default)s]",
+)
+
+parser.add_argument(
     "-w",
     "--overwrite",
     action="store_true",
@@ -415,6 +444,11 @@ def main():
                 with GPUScheduler(max_try=7200, sleep_duration=1) as scheduler:
                     kwargs["gpu_id"] = scheduler.gpu_id
                     ans = method(**kwargs)
+            elif kwargs["gpu_id"] == -3:
+                # APS PBS scheduler: GPU index is passed via environment variable
+                from boost_corr.aps_pbs_scheduler import run_pbs_jobs
+
+                run_pbs_jobs(**kwargs)
             else:
                 ans = method(**kwargs)
         except Exception as e:
