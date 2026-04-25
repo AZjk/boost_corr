@@ -2,8 +2,8 @@ import numpy as np
 import logging
 import torch
 from .xpcs_dataset import XpcsDataset
-from .help_functions import convert_sparse
-from ...help_functions import is_gpu_device
+from .rigaku_utils import convert_sparse
+from ...devices import is_gpu_device
 import os
 
 

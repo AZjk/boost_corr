@@ -7,7 +7,7 @@ from PyQt5 import uic, QtCore
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QFileDialog, QListView,
                              QAbstractItemView, QTreeView)
 from gpu_corr_solver import GPUSolverWorker, get_raw_meta
-from boost_corr.help_functions import _GPU_BACKEND, get_gpu_count
+from boost_corr.devices import _GPU_BACKEND, get_gpu_count
 
 
 def get_system_information():

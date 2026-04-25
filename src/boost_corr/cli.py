@@ -67,22 +67,6 @@ def convert_to_list(input_str: str):
     return result
 
 
-def check_computing_device_exist(index):
-    assert isinstance(index, int) and index >= -3
-    if index == -1 or index == -3:  # CPU or APS PBS scheduler
-        return True
-    # GPUs — count is cached at import time; XPU and CUDA are mutually exclusive
-    from boost_corr.help_functions import get_gpu_count
-
-    num_gpus = get_gpu_count()
-    if index == -2:
-        # using auto-scheduling; check if there is at least one GPU
-        return num_gpus > 0
-    else:
-        # Devices are indexed 0 to (num_gpus - 1)
-        return 0 <= index < num_gpus
-
-
 default_config = {
     "qmap": None,  # Path to qmap file
     "output": "cluster_results",
@@ -434,20 +418,22 @@ def main():
 
         ans = None
         try:
+            from boost_corr.devices import check_computing_device_exist
+
             if not check_computing_device_exist(kwargs["gpu_id"]):
                 logging.error(f"GPU device [{kwargs['gpu_id']}] not found. Aborting.")
                 traceback.print_exc()
                 raise exc.ComputingDeviceError
 
             if kwargs["gpu_id"] == -2:
-                from boost_corr.gpu_scheduler import GPUScheduler
+                from boost_corr.scheduler.simple_gpu_scheduler import GPUScheduler
 
                 with GPUScheduler(max_try=7200, sleep_duration=1) as scheduler:
                     kwargs["gpu_id"] = scheduler.gpu_id
                     ans = method(**kwargs)
             elif kwargs["gpu_id"] == -3:
                 # APS PBS scheduler: GPU index is passed via environment variable
-                from boost_corr.aps_pbs_scheduler import run_pbs_jobs
+                from boost_corr.scheduler.aps_pbs_scheduler import run_pbs_jobs
 
                 run_pbs_jobs(**kwargs)
             else:

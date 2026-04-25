@@ -4,7 +4,7 @@ from .rigaku_handler import RigakuDataset
 import os
 import logging
 import torch
-from .help_functions import get_number_of_frames_from_binfile
+from .rigaku_utils import get_number_of_frames_from_binfile
 import time
 
 

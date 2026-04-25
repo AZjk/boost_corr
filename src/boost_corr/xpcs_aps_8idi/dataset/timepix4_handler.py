@@ -3,7 +3,7 @@ import logging
 import torch
 from .xpcs_dataset import XpcsDataset
 from timepix_dataset.dataset import TimepixRawDataset
-from ...help_functions import is_gpu_device
+from ...devices import is_gpu_device
 
 
 logger = logging.getLogger(__name__)

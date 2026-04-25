@@ -7,7 +7,7 @@ from typing import Any, Optional, Union
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 
 from ...correlator.multitau import MultitauCorrelator
-from ...help_functions import get_device
+from ...devices import get_device
 from ..dataset import create_dataset
 from ..xpcs_result import XpcsResult, check_metadata
 from .common import (
