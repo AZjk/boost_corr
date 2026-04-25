@@ -4,26 +4,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional, Union
 
-import torch
-
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 
-from .. import MultitauCorrelator
-from ..help_functions import get_device
-from .dataset import create_dataset
-from .xpcs_qpartitionmap import XpcsQPartitionMap
-from .xpcs_result import XpcsResult, check_metadata
+from ... import MultitauCorrelator
+from ...help_functions import get_device
+from ..dataset import create_dataset
+from ..xpcs_result import XpcsResult, check_metadata
+from .common import (
+    attach_debug_note,
+    create_qpm,
+    empty_gpu_cache,
+    load_raw_list,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _create_qpm(qmap, device, crop_ratio_threshold):
-    try:
-        return XpcsQPartitionMap(
-            qmap, device=device, crop_ratio_threshold=crop_ratio_threshold
-        )
-    except Exception as e:
-        raise exc.QMapError from e
 
 
 def _build_segment_jobs(
@@ -55,13 +49,6 @@ def _build_segment_jobs(
             _suffix = f"{suffix}_{_suffix}"
         jobs.append((raw_file, entry, _suffix))
     return jobs
-
-
-def _empty_gpu_cache(device: str):
-    if device.startswith("cuda"):
-        torch.cuda.empty_cache()
-    elif device.startswith("xpu"):
-        torch.xpu.empty_cache()
 
 
 def _create_or_reset_correlator(existing, dset, mask_crop, multitau_kwargs):
@@ -166,7 +153,7 @@ def solve_multitau(
     analysis_kwargs["analysis_type"] = "multitau"
 
     device = get_device(gpu_id)
-    qpm = _create_qpm(qmap, device, crop_ratio_threshold)
+    qpm = create_qpm(qmap, device, crop_ratio_threshold)
 
     if verbose:
         qpm.describe()
@@ -193,10 +180,7 @@ def solve_multitau(
         "max_memory": max_memory,
     }
 
-    if len(raw) == 1 and raw[0].endswith(".txt"):
-        logger.info(f"raw input is a text file, loading raw file list from {raw[0]}")
-        with open(raw[0], "r") as f:
-            raw = [line.strip() for line in f if line.strip()]
+    raw = load_raw_list(raw)
 
     if num_segments > 1:
         logger.info(
@@ -235,7 +219,7 @@ def solve_multitau(
             ):
                 logger.info("freeing existing correlator to reclaim VRAM")
                 correlator = None
-                _empty_gpu_cache(device)
+                empty_gpu_cache(device)
             correlator = _create_or_reset_correlator(
                 correlator,
                 dset,
@@ -279,24 +263,12 @@ def solve_multitau(
             ts = datetime.now().strftime("%m-%d %H:%M:%S")
             print(f"[{ts}] [{job_idx}/{n_jobs}] ({elapsed:.1f}s) saved: {last_fname}")
         except Exception as e:
-            _debug_keys = {
-                "raw",
-                "qmap",
-                "output",
-                "meta_fname",
-                "gpu_id",
-                "normalize_frame",
-                "begin_frame",
-                "end_frame",
-                "avg_frame",
-                "stride_frame",
-                "num_segments",
-            }
-            debug_info = {
-                k: analysis_kwargs[k] for k in _debug_keys if k in analysis_kwargs
-            }
-            debug_info["raw"] = raw_fname
-            e.add_note(f"analysis_kwargs: {debug_info}")
+            attach_debug_note(
+                e,
+                analysis_kwargs,
+                raw_fname,
+                extra_keys=("normalize_frame", "num_segments"),
+            )
             if single_job:
                 raise
             elapsed = time.perf_counter() - t_job_start

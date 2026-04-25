@@ -416,15 +416,15 @@ def main():
         kwargs.pop("dry_run")
         atype = kwargs.pop("type")
         if atype == "Multitau":
-            from boost_corr.xpcs_aps_8idi.gpu_corr_multitau import solve_multitau
+            from boost_corr.xpcs_aps_8idi.correlation import solve_multitau
 
             method = solve_multitau
         elif atype == "Twotime":
-            from boost_corr.xpcs_aps_8idi.gpu_corr_twotime import solve_twotime
+            from boost_corr.xpcs_aps_8idi.correlation import solve_twotime
 
             method = solve_twotime
         elif atype == "Both":
-            from boost_corr.xpcs_aps_8idi.gpu_corr import solve_corr
+            from boost_corr.xpcs_aps_8idi.correlation import solve_corr
 
             method = solve_corr
         else:

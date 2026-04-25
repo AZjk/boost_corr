@@ -1,6 +1,6 @@
-from .gpu_corr_multitau import solve_multitau
-from .gpu_corr_twotime import solve_twotime
-from .xpcs_result import XpcsResult
+from ..xpcs_result import XpcsResult
+from .multitau import solve_multitau
+from .twotime import solve_twotime
 
 
 def solve_corr(*args, analysis_type="Both", **kwargs):
