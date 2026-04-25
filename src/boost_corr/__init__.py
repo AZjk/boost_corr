@@ -13,8 +13,3 @@ except PackageNotFoundError:
 import logging
 
 logging.getLogger("boost_corr").addHandler(logging.NullHandler())
-
-from .multitau import MultitauCorrelator
-from .twotime import TwotimeCorrelator
-
-__all__ = (MultitauCorrelator, TwotimeCorrelator)

@@ -5,7 +5,6 @@ import argparse
 import logging
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 from boost_corr import __version__
-from boost_corr.help_functions import get_gpu_count
 
 
 _LOG_FORMAT = "%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s"
@@ -73,6 +72,8 @@ def check_computing_device_exist(index):
     if index == -1 or index == -3:  # CPU or APS PBS scheduler
         return True
     # GPUs — count is cached at import time; XPU and CUDA are mutually exclusive
+    from boost_corr.help_functions import get_gpu_count
+
     num_gpus = get_gpu_count()
     if index == -2:
         # using auto-scheduling; check if there is at least one GPU

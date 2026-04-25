@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm, trange
 
-from .help_functions import gen_tau_bin, is_power_two, sort_tau_bin
+from ..help_functions import gen_tau_bin, is_power_two, sort_tau_bin
 
 logger = logging.getLogger(__name__)
 

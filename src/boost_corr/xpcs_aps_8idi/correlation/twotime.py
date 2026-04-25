@@ -6,7 +6,7 @@ from typing import Any, Optional, Union
 
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 
-from ... import TwotimeCorrelator
+from ...correlator.twotime import TwotimeCorrelator
 from ...help_functions import get_device
 from ..dataset import create_dataset
 from ..xpcs_result import XpcsResult, check_metadata
