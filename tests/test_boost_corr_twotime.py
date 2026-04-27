@@ -23,7 +23,7 @@ def run_and_get_result(frame_num=512, device='cpu', smooth_method='sqmap'):
     for _ in range(frame_num):
         x = torch.ones(det_size, device=device).reshape(-1, num_elm)
         tt.process(x)
-    tt.post_processing(smooth_method=smooth_method)
+    tt.post_process(smooth_method=smooth_method)
     result_saxs = tt.get_saxs()
     result_twotime = tt.get_twotime_result()
     return result_saxs, result_twotime

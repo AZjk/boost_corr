@@ -143,6 +143,21 @@ class MultitauCorrelator(object):
         self.tau_in_level = tau_in_level
         self.current_frame = 0
 
+    @classmethod
+    def from_config(cls, qpm, dset, device, **kwargs):
+        return cls(
+            det_size=dset.det_size,
+            frame_num=dset.frame_num,
+            mask_crop=qpm.mask_crop,
+            device=device,
+            queue_size=kwargs.get("batch_size", 8),
+            auto_queue=True,
+            normalize_frame=kwargs.get("normalize_frame", False),
+            qpm=qpm,
+            num_partial_g2=kwargs.get("num_partial_g2", 0),
+            max_memory=kwargs.get("max_memory", 36.0),
+        )
+
     def describe(self):
         logger.info(f"queue information (auto, size, level): {self.queue_info}")
         dlist = [str(self.dtype_list[n][0]) for n in range(len(self.dtype_list))]
@@ -421,8 +436,6 @@ class MultitauCorrelator(object):
                 x = x.to(self.device, non_blocking=True)
                 self.process(x)
 
-        self.post_process()
-
     def get_results(self):
         intt = torch.hstack(self.intt).float()
         tline = torch.arange(intt.shape[0], device=intt.device)
@@ -441,6 +454,16 @@ class MultitauCorrelator(object):
             "tau": self.tau_bin[0, :],
         }
         return output_scattering, output_multitau
+
+    def get_normalized_payloads(self, qpm, save_G2=False, skip_scattering=False, **kwargs):
+        """Return a list of normalized payload dicts ready to write."""
+        output_scattering, output_multitau = self.get_results()
+        payloads = []
+        if not skip_scattering:
+            payloads.append(qpm.normalize_scattering(output_scattering))
+        payloads.append(qpm.normalize_multitau(output_multitau, save_G2=save_G2))
+        payloads.append(self.get_partial_g2())
+        return payloads
 
 
 def read_data(det_size, fname="../xpcs_data_simulation/simulation_0010k_sparse_0.005.bin"):

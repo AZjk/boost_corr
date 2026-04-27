@@ -395,28 +395,14 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     if kwargs["dry_run"]:
-        ans = "dry_run_only"
         print(json.dumps(kwargs, indent=4))
     else:
         kwargs.pop("dry_run")
+        from boost_corr.xpcs_aps_8idi.correlation import solve_correlation
+
         atype = kwargs.pop("type")
-        if atype == "Multitau":
-            from boost_corr.xpcs_aps_8idi.correlation import solve_multitau
+        method = lambda **kw: solve_correlation(analysis_type=atype, **kw)
 
-            method = solve_multitau
-        elif atype == "Twotime":
-            from boost_corr.xpcs_aps_8idi.correlation import solve_twotime
-
-            method = solve_twotime
-        elif atype == "Both":
-            from boost_corr.xpcs_aps_8idi.correlation import solve_corr
-
-            method = solve_corr
-        else:
-            exit_code = 1
-            raise ValueError(f"Analysis type [{atype}] not supported.")
-
-        ans = None
         try:
             from boost_corr.devices import check_computing_device_exist
 
@@ -430,14 +416,13 @@ def main():
 
                 with GPUScheduler(max_try=7200, sleep_duration=1) as scheduler:
                     kwargs["gpu_id"] = scheduler.gpu_id
-                    ans = method(**kwargs)
+                    method(**kwargs)
             elif kwargs["gpu_id"] == -3:
-                # APS PBS scheduler: GPU index is passed via environment variable
                 from boost_corr.scheduler.aps_pbs_scheduler import run_pbs_jobs
 
                 run_pbs_jobs(**kwargs)
             else:
-                ans = method(**kwargs)
+                method(**kwargs)
         except Exception as e:
             if hasattr(e, "exit_code"):
                 exit_code = e.exit_code
@@ -447,8 +432,6 @@ def main():
             # disable raise e to pass the exit code to the main function;
             # raise e
 
-    # send the result's fname to std-out
-    # print(ans)
     # print(f"Exit code: {exit_code}")
     return exit_code
 

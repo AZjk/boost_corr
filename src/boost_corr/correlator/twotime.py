@@ -93,6 +93,31 @@ class TwotimeCorrelator:
         self.sdata = None
         self.c2_idx = 1
 
+    @classmethod
+    def from_config(cls, qpm, dset, device, **kwargs):
+        return cls(
+            qinfo=qpm.qinfo,
+            frame_num=dset.frame_num,
+            det_size=dset.det_size,
+            method="normal",
+            mask_crop=qpm.mask_crop,
+            window=kwargs.get("window", 1024),
+            device=device,
+        )
+
+    def reset(self):
+        self.cache.zero_()
+        self.cache_ptr = 0
+        if self.method == "window":
+            self.c2.zero_()
+            self.c2_ptr = 0
+        self.frame_sum = None
+        self.pixel_sum = None
+        self.g2full = []
+        self.g2partial = []
+        self.sdata = None
+        self.c2_idx = 1
+
     def process(self, x):
         if self.method == "normal":
             sz = x.shape[0]
@@ -192,12 +217,22 @@ class TwotimeCorrelator:
             self.process_window(x[1:])
             return
 
-    def post_processing(self, smooth_method=None, **kwargs):
+    def post_process(self, smooth_method=None, **kwargs):
         self.cache = self.cache.float()
         # saxs2d
         self.compute_average()
         # smooth data
         self.compute_smooth_data(smooth_method)
+
+    def get_results(self, **kwargs):
+        return self.get_scattering(), self.get_twotime_generator(**kwargs)
+
+    def get_normalized_payloads(self, qpm, skip_scattering=False, **kwargs):
+        """Yield normalized payload dicts ready to write (lazy: c2 computed during iteration)."""
+        raw_scattering, twotime_gen = self.get_results()
+        if not skip_scattering:
+            yield qpm.normalize_scattering(raw_scattering)
+        yield from twotime_gen
 
     def get_twotime_generator(self, **kwargs):
         for c2 in self.calc_normal_twotime(**kwargs):
