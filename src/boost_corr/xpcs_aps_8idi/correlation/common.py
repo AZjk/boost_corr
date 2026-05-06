@@ -9,6 +9,7 @@ from typing import Any, Optional, Union
 import torch
 
 import boost_corr.xpcs_aps_8idi.exceptions as exc
+from boost_corr import log_timer
 
 from ...correlator.multitau import MultitauCorrelator
 from ...correlator.twotime import TwotimeCorrelator
@@ -77,23 +78,19 @@ def attach_debug_note(e, analysis_kwargs, raw_fname, extra_keys=()):
     e.add_note(f"analysis_kwargs: {debug_info}")
 
 
-def create_or_reset_correlator(existing, dset, factory, device):
-    """Reuse correlator via reset() if shape matches dset; else free and rebuild via factory."""
-    if existing is not None and (
-        existing.frame_num != dset.frame_num
-        or existing.det_size != dset.det_size
-    ):
-        logger.info("freeing existing correlator to reclaim VRAM")
-        existing = None
-        empty_gpu_cache(device)
+def prepare_correlator(existing, dset):
+    """Reset and return existing correlator if shapes match dset; else return None.
 
+    When None is returned the caller must rebind its reference (dropping the old object)
+    and call empty_gpu_cache before allocating a new correlator, so the old VRAM is
+    fully released before the new allocation begins.
+    """
     if existing is None:
-        try:
-            return factory()
-        except Exception as e:
-            raise exc.CorrelatorError from e
-
-    logger.info("reset correlator")
+        return None
+    if existing.frame_num != dset.frame_num or existing.det_size != dset.det_size:
+        logger.info("freeing existing correlator to reclaim VRAM")
+        return None
+    logger.info("reusing existing correlator; resetting state")
     existing.reset()
     return existing
 
@@ -129,7 +126,7 @@ def normalize_results(correlator, qpm, **opts):
     return payloads
 
 
-def save_result(result_kwargs, payloads, label, post_save=None):
+def save_result(result_kwargs, payloads, label, post_save=None, t_start=None):
     """Write all payloads to a result file. post_save runs after appending, before close."""
     try:
         with XpcsResult(**result_kwargs) as result_file:
@@ -137,7 +134,8 @@ def save_result(result_kwargs, payloads, label, post_save=None):
                 result_file.append(payload)
             if post_save is not None:
                 post_save(result_file)
-        logger.info(f"{label} analysis finished")
+        elapsed = f" in {time.perf_counter() - t_start:.3f}s" if t_start is not None else ""
+        logger.info(f"{label} analysis finished{elapsed}")
         return result_file.fname
     except Exception as e:
         raise exc.ResultSavingError from e
@@ -176,19 +174,23 @@ def run_jobs(
 
     for job_idx, (raw_fname, dset_kwargs, _suffix) in enumerate(jobs, start=1):
         t_job_start = time.perf_counter()
+        log_timer.reset()
+        dset = None
         try:
             check_metadata(raw_fname, meta_fname)
             dset, use_loader = create_dataset(raw_fname, **dset_kwargs)
             qpm.update_rotation(dset.det_size)
-            correlator = create_or_reset_correlator(
-                correlator, dset, lambda: correlator_factory(dset), device
-            )
+            correlator = prepare_correlator(correlator, dset)
+            if correlator is None:
+                empty_gpu_cache(device)
+                try:
+                    correlator = correlator_factory(dset)
+                except Exception as e:
+                    raise exc.CorrelatorError from e
 
             if verbose:
-                if hasattr(dset, "describe"):
-                    dset.describe()
-                if hasattr(correlator, "describe"):
-                    correlator.describe()
+                dset.describe()
+                correlator.describe()
                 logger.info("correlation solver created.")
 
             run_correlation(
@@ -210,6 +212,7 @@ def run_jobs(
             }
 
             if not save_results and single_job:
+                correlator = None  # release VRAM before finally flushes cache
                 return result_kwargs, payloads
 
             post_save = (
@@ -218,7 +221,7 @@ def run_jobs(
                 else None
             )
             fname = save_result(
-                result_kwargs, payloads, label=label, post_save=post_save
+                result_kwargs, payloads, label=label, post_save=post_save, t_start=t_job_start
             )
             elapsed = time.perf_counter() - t_job_start
             log_job_status(job_idx, n_jobs, elapsed, f"saved: {fname}")
@@ -233,6 +236,9 @@ def run_jobs(
             logger.error(f"job failed for {raw_fname}: {e}", exc_info=True)
             failed_jobs.append(raw_fname)
             correlator = None  # reset: state may be corrupted after a failed job
+        finally:
+            dset = None
+            empty_gpu_cache(device)
 
     if failed_jobs:
         logger.warning(f"{len(failed_jobs)} job(s) failed: {failed_jobs}")
@@ -254,6 +260,12 @@ def build_segment_jobs(raw_file, num_segments, begin_frame, suffix, common_dset_
     )
     dset, _ = create_dataset(raw_file, **common_dset_kwargs)
     total_frame_num = dset.frame_num
+
+    # create_dataset may have allocated VRAM for the full dataset, so release before
+    # any further work
+    dset = None
+    empty_gpu_cache(common_dset_kwargs["device"])
+
     assert total_frame_num % num_segments == 0, (
         "total frame number must be divisible by num_segments"
     )
@@ -303,11 +315,29 @@ _CORRELATOR_CLASSES = {
 _VALID_TYPES = ("Multitau", "Twotime", "Both")
 
 
-def _build_run_args(analysis_type, *, qpm, device, verbose, num_loaders,
-                    meta_fname, save_results, qmap, output, overwrite, prefix,
-                    batch_size, normalize_frame, num_partial_g2, max_memory,
-                    save_G2, bin_time_s, smooth, analysis_kwargs,
-                    skip_scattering=False):
+def _build_run_args(
+    analysis_type,
+    *,
+    qpm,
+    device,
+    verbose,
+    num_loaders,
+    meta_fname,
+    save_results,
+    qmap,
+    output,
+    overwrite,
+    prefix,
+    batch_size,
+    normalize_frame,
+    num_partial_g2,
+    max_memory,
+    save_G2,
+    bin_time_s,
+    smooth,
+    analysis_kwargs,
+    skip_scattering=False,
+):
     """Build the correlator factory and run_jobs kwargs for a single analysis type."""
     label = analysis_type.lower()
     CorrelatorClass = _CORRELATOR_CLASSES[analysis_type]
@@ -323,8 +353,10 @@ def _build_run_args(analysis_type, *, qpm, device, verbose, num_loaders,
 
     run_opts: dict = {}
     if analysis_type == "Multitau":
-        run_opts["normalize_opts"] = {"save_G2": save_G2,
-                                      "skip_scattering": skip_scattering}
+        run_opts["normalize_opts"] = {
+            "save_G2": save_G2,
+            "skip_scattering": skip_scattering,
+        }
 
         def _post_save(rf, dset):
             if dset.dataset_type == "Timepix4Dataset":
@@ -395,13 +427,12 @@ def solve_correlation(
             f"Unknown analysis_type {analysis_type!r}. Expected one of {_VALID_TYPES}"
         )
 
+    log_timer.reset()  # exclude import time from T+ display
     log_level = logging.INFO if verbose else logging.ERROR
     logger.setLevel(log_level)
 
     analysis_kwargs = {
-        k: v
-        for k, v in locals().items()
-        if k not in ("save_results", "kwargs")
+        k: v for k, v in locals().items() if k not in ("save_results", "kwargs")
     }
 
     device = get_device(gpu_id)
@@ -425,12 +456,22 @@ def solve_correlation(
 
     # --- shared build_run_args kwargs (save_results excluded: set per call site) ---
     shared = dict(
-        qpm=qpm, device=device, verbose=verbose, num_loaders=num_loaders,
+        qpm=qpm,
+        device=device,
+        verbose=verbose,
+        num_loaders=num_loaders,
         meta_fname=meta_fname,
-        qmap=qmap, output=output, overwrite=overwrite, prefix=prefix,
-        batch_size=batch_size, normalize_frame=normalize_frame,
-        num_partial_g2=num_partial_g2, max_memory=max_memory,
-        save_G2=save_G2, bin_time_s=bin_time_s, smooth=smooth,
+        qmap=qmap,
+        output=output,
+        overwrite=overwrite,
+        prefix=prefix,
+        batch_size=batch_size,
+        normalize_frame=normalize_frame,
+        num_partial_g2=num_partial_g2,
+        max_memory=max_memory,
+        save_G2=save_G2,
+        bin_time_s=bin_time_s,
+        smooth=smooth,
     )
 
     if analysis_type != "Both":
@@ -446,20 +487,26 @@ def solve_correlation(
             common_dset_kwargs["bin_time_s"] = bin_time_s
             common_dset_kwargs["run_config_path"] = run_config_path
 
-        raw = load_raw_list(raw)
+        raw_files = load_raw_list(raw)
         jobs = build_jobs(
-            raw, num_segments, begin_frame, suffix, common_dset_kwargs,
+            raw_files,
+            num_segments,
+            begin_frame,
+            suffix,
+            common_dset_kwargs,
             label=f"{analysis_type.lower()} ",
         )
         run_args = _build_run_args(
-            analysis_type, analysis_kwargs=analysis_kwargs,
-            save_results=save_results, **shared,
+            analysis_type,
+            analysis_kwargs=analysis_kwargs,
+            save_results=save_results,
+            **shared,
         )
         run_jobs(jobs, **run_args)
         return
 
     # --- "Both": run multitau then twotime per raw file, merge into one result ---
-    raw = load_raw_list(raw)
+    raw_files = load_raw_list(raw)
 
     base_dset_kwargs = {
         "device": device,
@@ -479,27 +526,41 @@ def solve_correlation(
     twotime_analysis_kwargs = {**analysis_kwargs, "analysis_type": "Twotime"}
 
     mt_run_args = _build_run_args(
-        "Multitau", analysis_kwargs=multitau_analysis_kwargs, **shared,
+        "Multitau",
+        analysis_kwargs=multitau_analysis_kwargs,
+        **shared,
         save_results=False,
     )
     tt_run_args = _build_run_args(
-        "Twotime", analysis_kwargs=twotime_analysis_kwargs, **shared,
-        save_results=False, skip_scattering=True,
+        "Twotime",
+        analysis_kwargs=twotime_analysis_kwargs,
+        **shared,
+        save_results=False,
+        skip_scattering=True,
     )
 
-    n_files = len(raw)
-    for file_idx, raw_file in enumerate(raw, start=1):
+    n_files = len(raw_files)
+    for file_idx, raw_file in enumerate(raw_files, start=1):
         t_file_start = time.perf_counter()
         mt_jobs = build_jobs(
-            [raw_file], num_segments, begin_frame, suffix,
-            multitau_dset_kwargs, label="multitau ",
+            [raw_file],
+            num_segments,
+            begin_frame,
+            suffix,
+            multitau_dset_kwargs,
+            label="multitau ",
         )
         tt_jobs = build_jobs(
-            [raw_file], num_segments, begin_frame, suffix,
-            base_dset_kwargs, label="twotime ",
+            [raw_file],
+            num_segments,
+            begin_frame,
+            suffix,
+            base_dset_kwargs,
+            label="twotime ",
         )
 
         rf_kwargs_m, payloads_m = run_jobs(mt_jobs, **mt_run_args)
+        empty_gpu_cache(device)  # flush after multitau; twotime allocates next
         rf_kwargs_t, payloads_t = run_jobs(tt_jobs, **tt_run_args)
 
         rf_kwargs_m.update(rf_kwargs_t)
