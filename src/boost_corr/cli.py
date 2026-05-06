@@ -5,10 +5,17 @@ import argparse
 import logging
 import boost_corr.xpcs_aps_8idi.exceptions as exc
 from boost_corr import __version__
+from boost_corr import log_timer
 
 
-_LOG_FORMAT = "%(asctime)s T+%(relativeCreated)05dms [%(filename)s]: %(message)s"
+_LOG_FORMAT = "%(asctime)s T+%(job_elapsed)s [%(filename)s]: %(message)s"
 _LOG_DATEFMT = "%m-%d %H:%M:%S"
+
+
+class _JobTimingFormatter(logging.Formatter):
+    def format(self, record):
+        record.job_elapsed = f"{log_timer.elapsed_s():.3f}s"
+        return super().format(record)
 
 
 class _MaxLevelFilter(logging.Filter):
@@ -22,7 +29,7 @@ class _MaxLevelFilter(logging.Filter):
 
 
 def _setup_logging():
-    formatter = logging.Formatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT)
+    formatter = _JobTimingFormatter(_LOG_FORMAT, datefmt=_LOG_DATEFMT)
 
     # INFO and below → stdout (visible in PBS .o file)
     stdout_handler = logging.StreamHandler(sys.stdout)
