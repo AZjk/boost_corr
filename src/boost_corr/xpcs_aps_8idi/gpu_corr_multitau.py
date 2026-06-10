@@ -10,6 +10,7 @@ from .. import MultitauCorrelator
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .xpcs_result import XpcsResult
+from boost_corr import __version__ as boost_corr_version
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ def solve_multitau(*args: Any, **kwargs: Any) -> Union[str, None]:
 
     kwargs_record = kwargs.copy()
     kwargs_record["analysis_type"] = "multitau"
+    kwargs_record["boost_corr_version"] = boost_corr_version
 
     if num_segments > 1:
         all_rawfiles = kwargs["raw"].copy()  # force copy

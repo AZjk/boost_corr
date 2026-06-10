@@ -10,6 +10,7 @@ from .. import TwotimeCorrelator
 from .dataset import create_dataset
 from .xpcs_qpartitionmap import XpcsQPartitionMap
 from .xpcs_result import XpcsResult
+from boost_corr import __version__ as boost_corr_version
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 def solve_twotime(*args: Any, **kwargs: Any) -> Union[str, None]:
     kwargs_record = kwargs.copy()
     kwargs_record["analysis_type"] = "twotime"
+    kwargs_record["boost_corr_version"] = boost_corr_version
     num_rawfiles = len(kwargs["raw"])
     if num_rawfiles == 1:
         kwargs["raw"] = kwargs["raw"][0]
