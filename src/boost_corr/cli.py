@@ -72,7 +72,7 @@ default_config = {
     "overwrite": False,
     "save_G2": False,  # Changed from "save_G2"
     "num_partial_g2": 0,  # Number of partial G2 to compute
-    "crop_ratio_threshold": 0.5,  # Threshold for masking
+    "crop_ratio_threshold": 1.0,  # Threshold for masking
     "max_memory": 36.0,  # Max memory usage in GB
     "num_segments": 1,
 }
