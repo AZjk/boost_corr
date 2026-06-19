@@ -1,5 +1,5 @@
 {
-    "PBS_SUBMIT_SERVER": "your-pbs-submit-host.example.org",
+    "PBS_SUBMIT_SERVER": "pioneer.xray.aps.anl.gov",
     "PBS_SUBMIT_USER": "your-username",
     "PBS_QSUB_PATH": "/opt/pbs/bin/qsub"
 }
