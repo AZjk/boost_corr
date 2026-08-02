@@ -142,7 +142,7 @@ def _create_pbs_scripts(
 #PBS -N boost-corr-pbs
 #PBS -q {pbs_queue}
 #PBS -l mem=49152mb
-#PBS -l ncpus=4
+#PBS -l ncpus=16
 #PBS -l ngpus=1
 #PBS -o {output_dir}/pbs_logs_{run_id}/{job_label}.o.log
 #PBS -e {output_dir}/pbs_logs_{run_id}/{job_label}.e.log

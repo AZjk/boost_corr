@@ -323,7 +323,7 @@ parser.add_argument(
     "--pbs-queue",
     type=str,
     default=default_config["pbs_queue"],
-    choices=["XpcsPreemptQ", "XpcsLowQ", "XpcsHighQ", "CssiPreemptQ", "CssiLowQ", "CssiHighQ"],
+    choices=["XpcsPreemptQ", "XpcsLowQ", "XpcsHighQ", "CssiPreemptQ", "CssiLowQ", "CssiHighQ", "inference"],
     help="PBS queue for job submission (only used with --gpu-id -3). [default: %(default)s]",
 )
 
